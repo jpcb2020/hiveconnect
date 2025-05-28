@@ -1,0 +1,58 @@
+/* 
+ * GLOBAL.CSS - Estilos globais utilizados em todas as telas
+ * Contém: variáveis CSS, reset básico, tipografia global
+ */
+
+:root {
+    --primary-color: #2563eb;
+    --primary-hover: #1d4ed8;
+    --primary-light: #93c5fd;
+    --primary-dark: #1e40af;
+    --secondary-color: #3f3f46;
+    --light-bg: #f9fafb;
+    --dark-text: #18181b;
+    --light-text: #f3f4f6;
+    --danger: #dc2626;
+    --success: #10b981;
+    --gradient-primary: linear-gradient(135deg, #3b82f6, #1e40af);
+    --gradient-secondary: linear-gradient(135deg, #60a5fa, #2563eb);
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    --shadow-input: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --border-radius: 0.5rem;
+    --input-radius: 0.375rem;
+    --transition-speed: 0.3s;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--light-bg);
+    color: var(--dark-text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* Utilitários globais */
+.invalid-feedback {
+    display: block;
+    color: var(--danger);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+    padding-left: 0.5rem;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+.shake {
+    animation: shake 0.3s ease-in-out;
+} 

@@ -1,0 +1,26 @@
+{
+  "name": "managerbet-organizado",
+  "version": "1.0.0",
+  "description": "ManagerBet project structure",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.5.0",
+    "ejs": "^3.1.10",
+    "express": "^4.17.1",
+    "express-validator": "^7.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.15"
+  }
+}

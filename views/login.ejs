@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConexBot - Login</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- CSS Global -->
+    <link rel="stylesheet" href="/css/global.css">
+    <!-- CSS específico para autenticação -->
+    <link rel="stylesheet" href="/css/auth-pages.css">
+    <!-- JavaScript Global -->
+    <script src="/js/auth.js"></script>
+    <!-- JavaScript para validação -->
+    <script src="/js/validation.js"></script>
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <!-- Coluna esquerda com imagem e branding -->
+        <div class="auth-brand">
+            <div class="auth-brand-content">
+                <h1>ConexBot</h1>
+                <p>Automatize seus disparos de WhatsApp e alcance seus clientes de forma eficiente com nossa plataforma inteligente.</p>
+                
+                <div class="features">
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-paper-plane"></i>
+                        </div>
+                        <span>Envie milhares de mensagens instantaneamente</span>
+                    </div>
+                    
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <span>Gerencie contatos e listas de forma inteligente</span>
+                    </div>
+                    
+                    <div class="feature-item">
+                        <div class="feature-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <span>Acompanhe estatísticas de entrega em tempo real</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Coluna direita com formulário -->
+        <div class="auth-form-container">
+            <div class="auth-form-header">
+                <h2>Bem-vindo(a) de volta</h2>
+                <p>Entre com suas credenciais para acessar sua conta</p>
+            </div>
+            
+            <form id="loginForm" class="auth-form">
+                <div class="form-floating">
+                    <input type="email" id="email" name="email" class="form-control" placeholder=" " required>
+                    <label for="email">Email</label>
+                    <div id="emailFeedback" class="invalid-feedback"></div>
+                </div>
+                
+                <div class="form-floating">
+                    <input type="password" id="password" name="password" class="form-control" placeholder=" " required>
+                    <label for="password">Senha</label>
+                    <div id="passwordFeedback" class="invalid-feedback"></div>
+                </div>
+                
+                <div class="form-check">
+                    <input type="checkbox" id="rememberMe" name="rememberMe" class="form-check-input">
+                    <label for="rememberMe" class="form-check-label">Manter conectado por 7 dias</label>
+                </div>
+                
+
+                
+                <button type="submit" class="auth-btn">Entrar</button>
+            </form>
+            
+            <div class="auth-footer">
+                Ao entrar, você concorda com nossos <a href="#">Termos de Serviço</a> e <a href="#">Política de Privacidade</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS Bundle com Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- JavaScript específico para formulários de autenticação -->
+    <script src="/js/auth-forms.js"></script>
+</body>
+</html>

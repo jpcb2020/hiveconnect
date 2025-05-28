@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - ConexBot</title>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- CSS Global -->
+    <link rel="stylesheet" href="/css/global.css">
+    <!-- CSS específico do admin -->
+    <link rel="stylesheet" href="/css/admin.css">
+    <!-- JavaScript Global de Autenticação -->
+    <script src="/js/auth.js"></script>
+</head>
+<body>
+    <div class="admin-container">
+        <header class="admin-header">
+            <div class="logo">
+                <h1>Conex<span>Bot</span> Admin</h1>
+            </div>
+            <div class="admin-controls">
+                <div class="search-bar">
+                    <input type="text" id="searchInput" placeholder="Pesquisar usuários...">
+                    <button class="filter-btn" id="filterBtn"><i class="fas fa-filter"></i></button>
+                </div>
+                <button class="add-user-btn" id="addUserBtn">
+                    <i class="fas fa-user-plus"></i> Adicionar Usuário
+                </button>
+                <div class="profile-menu">
+                    <button class="profile-btn" id="profileBtn">
+                        <i class="fas fa-user-circle"></i>
+                        <span><%= user.name %></span>
+                    </button>
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <a href="/dashboard"><i class="fas fa-chart-line"></i> Dashboard</a>
+                        <button id="logoutBtn">
+                            <i class="fas fa-sign-out-alt"></i> Desconectar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="admin-content">
+            <div class="admin-stats">
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="totalUsers">0</h3>
+                        <p>Total de Usuários</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-user-shield"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="adminUsers">0</h3>
+                        <p>Administradores</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="stat-info">
+                        <h3 id="regularUsers">0</h3>
+                        <p>Usuários Regulares</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="users-table-container">
+                <div class="table-header">
+                    <h2><i class="fas fa-table"></i> Gerenciamento de Usuários</h2>
+                    <div class="table-actions">
+                        <button class="refresh-btn" id="refreshBtn">
+                            <i class="fas fa-sync-alt"></i> Atualizar
+                        </button>
+                    </div>
+                </div>
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Criado em</th>
+                            <th>Atualizado em</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- Table content will be dynamically populated -->
+                    </tbody>
+                </table>
+                
+                <div class="pagination-controls" id="paginationControls">
+                    <button class="pagination-btn" id="prevBtn" disabled>
+                        <i class="fas fa-chevron-left"></i> Anterior
+                    </button>
+                    <span id="pageInfo">Página 1 de 1</span>
+                    <button class="pagination-btn" id="nextBtn" disabled>
+                        Próximo <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add/Edit User Modal -->
+    <div class="modal" id="userModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Adicionar Usuário</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="userForm">
+                <div class="form-group">
+                    <label for="name">Nome</label>
+                    <input type="text" id="name" name="name" required>
+                    <div class="error-message" id="nameError"></div>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
+                    <div class="error-message" id="emailError"></div>
+                </div>
+                <div class="form-group">
+                    <label for="password">Senha</label>
+                    <input type="password" id="password" name="password" required minlength="6" placeholder="Mínimo 6 caracteres">
+                </div>
+                <div class="form-group" id="editPasswordGroup" style="display: none;">
+                    <label for="newPassword">Nova Senha <span class="optional-text">(opcional)</span></label>
+                    <input type="password" id="newPassword" name="newPassword" minlength="6" placeholder="Deixe em branco para manter a senha atual">
+                    <div class="password-info">
+                        <small>Apenas preencha se desejar alterar a senha (mínimo 6 caracteres)</small>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="role">Role</label>
+                    <select id="role" name="role">
+                        <option value="user">Usuário</option>
+                        <option value="admin">Administrador</option>
+                        <option value="moderator">Moderador</option>
+                    </select>
+                </div>
+                <button type="submit" class="submit-btn">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Filter Modal -->
+    <div class="modal" id="filterModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Filtrar Usuários</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <form id="filterForm">
+                <div class="form-group">
+                    <label for="filterRole">Role</label>
+                    <select id="filterRole" name="role">
+                        <option value="">Todos</option>
+                        <option value="admin">Administrador</option>
+                        <option value="user">Usuário</option>
+                        <option value="moderator">Moderador</option>
+                    </select>
+                </div>
+                <button type="submit" class="submit-btn">Aplicar Filtros</button>
+                <button type="button" class="clear-filters-btn" id="clearFiltersBtn">Limpar Filtros</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script type="application/json" id="user-data"><%- JSON.stringify(user) %></script>
+    <script>
+        // Dados do usuário logado
+        window.currentUser = JSON.parse(document.getElementById('user-data').textContent);
+    </script>
+    <script src="/js/admin.js"></script>
+</body>
+</html> 

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - ConexBot</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- CSS Global -->
+    <link rel="stylesheet" href="/css/global.css">
+    <!-- CSS específico do dashboard (inclui styles.css) -->
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <!-- JavaScript Global -->
+    <script src="/js/auth.js"></script>
+    
+    <div id="loading-screen" class="loading-screen">
+        <div class="loader"></div>
+    </div>
+</head>
+<body>
+    <header class="dashboard-header">
+        <nav class="navbar">
+            <div class="logo">
+                <h1>Conex<span>Bot</span></h1>
+            </div>
+            <div class="nav-links">
+                <a href="#dashboard" class="active"><i class="fas fa-chart-line"></i> Dashboard</a>
+                <a href="#campaigns"><i class="fas fa-paper-plane"></i> Campanhas</a>
+                <a href="#disparos"><i class="fas fa-rocket"></i> Disparos</a>
+                <a href="#" id="settingsToggle"><i class="fas fa-cog"></i> Configurações</a>
+            </div>
+            <div class="user-profile">
+                <button id="profileBtn" class="profile-btn">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="userName"><%= user.name %></span>
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+                <div id="profileDropdown" class="profile-dropdown">
+                    <% if (user.role === 'admin') { %>
+                        <a href="/admin"><i class="fas fa-user-shield"></i> Painel Admin</a>
+                    <% } %>
+                    <a href="#" onclick="handleLogout(); return false;"><i class="fas fa-sign-out-alt"></i> Sair</a>
+                </div>
+            </div>
+            <button class="menu-btn">
+                <i class="fas fa-bars"></i>
+            </button>
+        </nav>
+    </header>
+    
+    <main class="dashboard-container">
+        <div class="dashboard-grid">
+            <!-- Broadcast Configuration Section -->
+            <section class="dashboard-section broadcast-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-sliders-h"></i> Configuração de Disparos</h2>
+                </div>
+                <div class="broadcast-settings">
+                    <div class="settings-grid">
+                        <div class="settings-item">
+                            <label for="messageInterval">Intervalo entre mensagens</label>
+                            <div class="input-with-unit">
+                                <input type="number" id="messageInterval" min="1" value="10">
+                                <span class="unit">segundos</span>
+                            </div>
+                        </div>
+                        <div class="settings-item">
+                            <label for="deliverySpeed">Velocidade de envio</label>
+                            <select id="deliverySpeed">
+                                <option value="slow">Lenta (Mais seguro)</option>
+                                <option value="medium" selected>Média (Recomendado)</option>
+                                <option value="fast">Rápida (Risco de bloqueio)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="settings-actions">
+                        <button class="save-settings-btn">
+                            <i class="fas fa-save"></i> Salvar Configurações
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- WhatsApp Connection Section -->
+            <section class="dashboard-section whatsapp-section">
+                <div class="section-header">
+                    <h2><i class="fab fa-whatsapp"></i> Conexão WhatsApp</h2>
+                    <span id="connectionStatus" class="connection-status disconnected">
+                        <i class="fas fa-circle"></i> Desconectado
+                    </span>
+                </div>
+                <div class="connection-container">
+                    <div class="qr-container" id="qrContainer">
+                        <div class="qr-placeholder">
+                            <i class="fas fa-qrcode"></i>
+                            <p>Aguardando QR Code</p>
+                        </div>
+                    </div>
+                    <div class="connection-info">
+                        <h3>Como conectar:</h3>
+                        <ol>
+                            <li>Abra o WhatsApp no seu celular</li>
+                            <li>Toque em Menu ou Configurações e selecione WhatsApp Web</li>
+                            <li>Aponte seu celular para esta tela para capturar o código QR</li>
+                        </ol>
+                        <div class="connection-actions">
+                            <button id="connectWhatsApp" class="connect-btn">
+                                <i class="fas fa-plug"></i> Iniciar Conexão
+                            </button>
+                            <button id="disconnectWhatsApp" class="disconnect-btn" style="display: none;">
+                                <i class="fas fa-sign-out-alt"></i> Desconectar
+                            </button>
+                            <button id="refreshQR" class="refresh-btn" style="display: none;">
+                                <i class="fas fa-sync-alt"></i> Atualizar QR
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Contact List Section -->
+            <section class="dashboard-section contacts-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-address-book"></i> Lista de Contatos</h2>
+                    <div class="import-actions">
+                        <div class="floating-menu-container">
+                            <button class="floating-menu-button">
+                                <i class="fa-solid fa-bars"></i>
+                            </button>
+                            <div class="floating-menu">
+                                <button class="floating-menu-item" id="importWhatsappContacts">
+                                    <i class="fa-brands fa-whatsapp"></i> Importar contatos do whatsapp
+                                </button>
+                                <button class="floating-menu-item" id="exportContactsList">
+                                    <i class="fa-solid fa-download"></i> Exportar lista de contatos
+                                </button>
+                            </div>
+                        </div>
+                        <button class="manual-import-btn" id="manualImportBtn">
+                            <i class="fas fa-keyboard"></i> Importar Manualmente
+                        </button>
+                        <button class="upload-btn">
+                            <i class="fas fa-upload"></i> Importar Arquivo
+                            <input type="file" id="fileUpload" accept=".txt,.csv,.xlsx,.xls" style="display: none;">
+                        </button>
+                        <button class="clear-contacts-btn" id="clearContactsBtn">
+                            <i class="fas fa-trash-alt"></i> Limpar Contatos
+                        </button>
+                    </div>
+                </div>
+                <div class="contact-list">
+                    <div class="contact-stats">
+                        <div class="stat-item">
+                            <span class="stat-value" id="totalContacts">0</span>
+                            <span class="stat-label">Total de Contatos</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value" id="validContacts">0</span>
+                            <span class="stat-label">Contatos Válidos</span>
+                        </div>
+                    </div>
+                    <div class="contact-table-container">
+                        <table class="contact-table">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>WhatsApp</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contactTableBody">
+                                <!-- Contacts will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Message Composition Section -->
+            <section class="dashboard-section message-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-pen-to-square"></i> Composição da Mensagem</h2>
+                </div>
+                <div class="message-composer">
+                    <div class="composer-group">
+                        <label for="messageContent">Mensagem</label>
+                        <textarea id="messageContent" placeholder="Digite sua mensagem..."></textarea>
+                        <button class="name-var-btn" id="nameVarBtn"><i class="fas fa-user"></i> Nome</button>
+                        <button class="name-var-btn" id="spintaxBtn"><i class="fas fa-random"></i> Spintax</button>
+                        <button class="ai-creative-btn" id="aiCreativeTextBtn">
+                            <i class="fas fa-magic"></i> Texto Criativo IA
+                            <div class="ai-creative-switch">
+                                <div class="ai-creative-switch-track"></div>
+                                <div class="ai-creative-switch-thumb"></div>
+                            </div>
+                        </button>
+                        <div class="message-tools">
+                            <button class="save-draft-btn"><i class="fas fa-save"></i> Salvar Rascunho</button>
+                        </div>
+                    </div>
+
+                    <div class="message-attachments">
+                        <h3>Anexos <span id="attachmentCounter" class="attachment-counter">0/10</span></h3>
+                        <div class="attachment-grid">
+                            <div class="attachment-item">
+                                <label for="imageUpload" class="upload-label">
+                                    <i class="fas fa-image"></i>
+                                    <span>Imagem</span>
+                                </label>
+                                <input type="file" id="imageUpload" accept="image/*" multiple hidden>
+                            </div>
+                            <div class="attachment-item">
+                                <label for="videoUpload" class="upload-label">
+                                    <i class="fas fa-video"></i>
+                                    <span>Vídeo</span>
+                                </label>
+                                <input type="file" id="videoUpload" accept="video/*" multiple hidden>
+                            </div>
+                            <div class="attachment-item">
+                                <label for="audioUpload" class="upload-label">
+                                    <i class="fas fa-music"></i>
+                                    <span>Áudio</span>
+                                </label>
+                                <input type="file" id="audioUpload" accept="audio/*" multiple hidden>
+                            </div>
+                            <div class="attachment-item">
+                                <label for="documentUpload" class="upload-label">
+                                    <i class="fas fa-file-alt"></i>
+                                    <span>Documentos</span>
+                                </label>
+                                <input type="file" id="documentUpload" accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx" multiple hidden>
+                            </div>
+                        </div>
+                        <div id="attachmentPreview" class="attachment-preview"></div>
+                    </div>
+                </div>
+                <div class="message-actions">
+                    <button class="preview-btn"><i class="fas fa-eye"></i> Visualizar</button>
+                    <button class="send-btn"><i class="fas fa-paper-plane"></i> Enviar Mensagem</button>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Spintax Modal -->
+    <div id="spintaxModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Adicionar Variações (Spintax)</h3>
+                <button class="close-btn close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>Adicione uma variação por linha. O sistema escolherá aleatoriamente uma das opções ao enviar a mensagem.</p>
+                <p class="modal-hint">Exemplo: "Olá", "Oi", "E aí" → O sistema escolherá entre "Olá", "Oi" ou "E aí"</p>
+                <textarea id="spintaxInput" placeholder="Digite as variações, uma por linha..." rows="8"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button class="cancel-btn close-modal">Cancelar</button>
+                <button class="import-btn" id="insertSpintax">Inserir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle com Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- JavaScript específico para dashboard -->
+    <script src="/js/dashboard.js"></script>
+</body>
+</html> 
