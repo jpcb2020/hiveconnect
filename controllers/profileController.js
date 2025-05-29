@@ -1,4 +1,4 @@
-const { getWhatsAppInstanceStatus, getWhatsAppQRCode, logoutWhatsAppInstance } = require('../utils/whatsappAPI');
+const { getWhatsAppInstanceStatus, getWhatsAppQRCode, logoutWhatsAppInstance, createWhatsAppInstance, deleteWhatsAppInstance } = require('../utils/whatsappAPI');
 const logger = require('../utils/logger');
 
 // @route   GET api/profile/me
@@ -115,6 +115,59 @@ exports.logoutMyWhatsApp = async (req, res) => {
         }
     } catch (err) {
         logger.error(`Erro ao fazer logout WhatsApp para usuário ${req.user.email}:`, err.message);
+        res.status(500).json({
+            success: false,
+            msg: 'Erro no servidor'
+        });
+    }
+};
+
+// @route   POST api/profile/whatsapp/create-instance
+// @desc    Create current user's WhatsApp instance
+// @access  Private
+exports.createMyWhatsAppInstance = async (req, res) => {
+    try {
+        const userEmail = req.user.email;
+        
+        if (!userEmail) {
+            return res.status(400).json({ msg: 'Email do usuário não encontrado no token' });
+        }
+        
+        // Primeiro, tentar deletar instância existente (se houver)
+        try {
+            logger.info(`Tentando deletar instância existente para ${userEmail} antes de criar nova...`);
+            await deleteWhatsAppInstance(userEmail);
+        } catch (deleteError) {
+            logger.info(`Nenhuma instância existente encontrada para ${userEmail} ou erro ao deletar (normal em primeira criação)`);
+        }
+        
+        const options = {
+            ignoreGroups: true,
+            ...req.body.options
+        };
+        
+        const whatsappResult = await createWhatsAppInstance(userEmail, options);
+        
+        if (whatsappResult.success) {
+            logger.info(`Instância WhatsApp criada com sucesso para usuário ${userEmail}: ${whatsappResult.clientId}`);
+            
+            res.status(201).json({
+                success: true,
+                msg: 'Instância WhatsApp criada com sucesso',
+                userEmail: userEmail,
+                clientId: whatsappResult.clientId,
+                qrCodeUrl: whatsappResult.qrCodeUrl,
+                status: 'Instância criada - escaneie o QR Code'
+            });
+        } else {
+            res.status(500).json({
+                success: false,
+                msg: 'Erro ao criar instância WhatsApp',
+                error: whatsappResult.error
+            });
+        }
+    } catch (err) {
+        logger.error(`Erro ao criar instância WhatsApp para usuário ${req.user.email}:`, err.message);
         res.status(500).json({
             success: false,
             msg: 'Erro no servidor'

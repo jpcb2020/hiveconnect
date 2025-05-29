@@ -259,9 +259,11 @@ async function checkWhatsAppStatus() {
         const data = await response.json();
         
         if (response.ok && data.status) {
-            updateConnectionUI(data.status);
+            console.log('Status WhatsApp recebido:', data);
+            updateConnectionUI(data);
         } else {
             // Status não encontrado - provavelmente não conectado
+            console.log('Status não encontrado ou resposta inválida:', data);
             updateConnectionUI({ status: 'disconnected' });
         }
     } catch (error) {
@@ -281,37 +283,86 @@ function updateConnectionUI(statusData) {
         return;
     }
 
-    switch (statusData.status) {
-        case 'connected':
-            connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Conectado';
-            connectionStatus.className = 'connection-status connected';
-            connectBtn.style.display = 'none';
-            disconnectBtn.style.display = 'block';
-            refreshBtn.style.display = 'none';
-            qrContainer.innerHTML = '<div class="qr-placeholder"><i class="fas fa-check-circle"></i><p>WhatsApp Conectado</p></div>';
-            break;
-            
-        case 'connecting':
-        case 'qr':
-            connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Aguardando QR Code';
-            connectionStatus.className = 'connection-status connecting';
-            connectBtn.style.display = 'none';
-            disconnectBtn.style.display = 'block';
-            refreshBtn.style.display = 'block';
-            // Se há QR code, buscar e exibir
-            if (statusData.status === 'connecting' || statusData.status === 'qr') {
-                fetchAndDisplayQRCode();
-            }
-            break;
-            
-        default:
-            connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Desconectado';
-            connectionStatus.className = 'connection-status disconnected';
-            connectBtn.style.display = 'block';
-            disconnectBtn.style.display = 'none';
-            refreshBtn.style.display = 'none';
-            qrContainer.innerHTML = '<div class="qr-placeholder"><i class="fas fa-qrcode"></i><p>Aguardando QR Code</p></div>';
-            break;
+    // Verificar se statusData tem a estrutura aninhada
+    let status;
+    let isConnected = false;
+    
+    if (statusData.status && typeof statusData.status === 'object') {
+        // Estrutura aninhada: statusData.status.status e statusData.status.connected
+        status = statusData.status.status;
+        isConnected = statusData.status.connected === true;
+    } else {
+        // Estrutura simples: statusData.status
+        status = statusData.status;
+        isConnected = status === 'connected' || status === 'open';
+    }
+
+    console.log('Status processado:', { status, isConnected, originalData: statusData });
+
+    // Verificar mudanças de status e notificar
+    if (previousWhatsAppStatus !== null && previousWhatsAppStatus !== status) {
+        handleStatusChange(status, previousWhatsAppStatus);
+    }
+    previousWhatsAppStatus = status;
+
+    if (isConnected && (status === 'open' || status === 'connected')) {
+        // WhatsApp está conectado e funcionando
+        connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Conectado';
+        connectionStatus.className = 'connection-status connected';
+        connectBtn.style.display = 'none';
+        disconnectBtn.style.display = 'block';
+        refreshBtn.style.display = 'none';
+        
+        qrContainer.innerHTML = `
+            <div class="qr-placeholder connected">
+                <i class="fas fa-check-circle"></i>
+                <p><strong>WhatsApp Conectado!</strong></p>
+                <p class="connection-details">Pronto para enviar mensagens</p>
+            </div>
+        `;
+        
+        // Só mostrar notificação na primeira vez ou quando reconectar
+        // Mas não na primeira verificação (quando previousWhatsAppStatus é null)
+        if (previousWhatsAppStatus !== null && previousWhatsAppStatus !== status) {
+            // A notificação já foi disparada pela função handleStatusChange
+            console.log('Status changed to connected, notification handled by handleStatusChange');
+        }
+    } else if (status === 'connecting' || status === 'qr' || status === 'qr_code') {
+        // Aguardando conexão via QR Code
+        connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Aguardando QR Code';
+        connectionStatus.className = 'connection-status connecting';
+        connectBtn.style.display = 'none';
+        disconnectBtn.style.display = 'block';
+        refreshBtn.style.display = 'block';
+        console.log('Status QR Code ativo, aguardando escaneamento...');
+    } else if (status === 'close' || status === 'closed') {
+        // Conexão fechada/perdida
+        connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Conexão Perdida';
+        connectionStatus.className = 'connection-status disconnected';
+        connectBtn.style.display = 'block';
+        disconnectBtn.style.display = 'none';
+        refreshBtn.style.display = 'none';
+        qrContainer.innerHTML = `
+            <div class="qr-placeholder disconnected">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Conexão perdida</p>
+                <p class="connection-details">Clique em "Iniciar Conexão" para reconectar</p>
+            </div>
+        `;
+    } else {
+        // Estado desconectado padrão
+        connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Desconectado';
+        connectionStatus.className = 'connection-status disconnected';
+        connectBtn.style.display = 'block';
+        disconnectBtn.style.display = 'none';
+        refreshBtn.style.display = 'none';
+        qrContainer.innerHTML = `
+            <div class="qr-placeholder">
+                <i class="fas fa-qrcode"></i>
+                <p>Aguardando QR Code</p>
+                <p class="connection-details">Clique em "Iniciar Conexão" para começar</p>
+            </div>
+        `;
     }
 }
 
@@ -342,16 +393,37 @@ async function connectWhatsApp() {
     connectBtn.disabled = true;
     
     try {
-        // Primeiro, verificar se já existe uma instância
-        const statusResponse = await authenticatedFetch('/api/profile/whatsapp/status');
-        
-        if (statusResponse.ok) {
-            const statusData = await statusResponse.json();
-            updateConnectionUI(statusData.status);
-            showNotification('Verificando conexão WhatsApp...', 'info');
+        // Criar uma nova instância WhatsApp
+        const createResponse = await authenticatedFetch('/api/profile/whatsapp/create-instance', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                options: {
+                    ignoreGroups: true
+                }
+            })
+        });
+
+        const createData = await createResponse.json();
+
+        if (createResponse.ok && createData.success) {
+            showNotification('Instância WhatsApp criada! Carregando QR Code...', 'success');
+            
+            // Aguardar um pouco antes de buscar o QR Code
+            setTimeout(async () => {
+                try {
+                    await fetchAndDisplayQRCode();
+                    updateConnectionUI({ status: 'qr_code' });
+                    showNotification('QR Code carregado! Escaneie com seu WhatsApp.', 'info');
+                } catch (qrError) {
+                    console.error('Erro ao buscar QR Code:', qrError);
+                    showNotification('Instância criada, mas erro ao carregar QR Code. Tente atualizar.', 'warning');
+                }
+            }, 2000);
         } else {
-            // Se não há instância, precisaríamos criar uma (isso seria feito pelo admin)
-            showNotification('Instância WhatsApp não configurada. Contate o administrador.', 'info');
+            showNotification(createData.msg || 'Erro ao criar instância WhatsApp', 'error');
         }
     } catch (error) {
         console.error('Erro ao conectar WhatsApp:', error);
@@ -553,6 +625,109 @@ style.textContent = `
         from { transform: translateX(0); opacity: 1; }
         to { transform: translateX(100%); opacity: 0; }
     }
+    
+    /* Estilos para feedback visual do WhatsApp */
+    .qr-placeholder.connected {
+        background: transparent;
+        color: #059669;
+        border: 2px dashed #10b981;
+        animation: connectedPulse 2s ease-in-out;
+        padding: 30px 20px;
+        border-radius: 12px;
+        text-align: center;
+    }
+    
+    .qr-placeholder.connected i {
+        color: #10b981;
+        font-size: 3.5rem;
+        margin-bottom: 15px;
+        animation: checkBounce 0.6s ease-out;
+        display: block;
+    }
+    
+    .qr-placeholder.connected p {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #059669;
+    }
+    
+    .qr-placeholder.disconnected {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        border: 2px solid #ef4444;
+        padding: 30px 20px;
+        border-radius: 12px;
+        text-align: center;
+    }
+    
+    .qr-placeholder.disconnected i {
+        color: #ffffff;
+        font-size: 2.5rem;
+        margin-bottom: 10px;
+        display: block;
+    }
+    
+    .connection-details {
+        font-size: 0.9rem;
+        opacity: 0.8;
+        margin-top: 8px;
+        font-weight: 400;
+        color: #6b7280;
+    }
+    
+    .connection-status.connected {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        color: white;
+        animation: statusGlow 2s ease-in-out;
+        box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+        border-radius: 20px;
+        padding: 8px 16px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .connection-status.connecting {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        animation: connectingPulse 2s infinite;
+        border-radius: 20px;
+        padding: 8px 16px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .connection-status.disconnected {
+        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+        color: white;
+        border-radius: 20px;
+        padding: 8px 16px;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    @keyframes connectedPulse {
+        0% { transform: scale(1); border-color: #10b981; }
+        50% { transform: scale(1.02); border-color: #059669; }
+        100% { transform: scale(1); border-color: #10b981; }
+    }
+    
+    @keyframes checkBounce {
+        0% { transform: scale(0); }
+        50% { transform: scale(1.2); }
+        100% { transform: scale(1); }
+    }
+    
+    @keyframes statusGlow {
+        0% { box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
+        50% { box-shadow: 0 0 25px rgba(16, 185, 129, 0.5); }
+        100% { box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
+    }
+    
+    @keyframes connectingPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
 `;
 document.head.appendChild(style);
 
@@ -588,4 +763,22 @@ async function authenticatedFetch(url, options = {}) {
         console.error('Erro na requisição autenticada:', error);
         throw error;
     }
-} 
+}
+
+// Função para notificar mudanças de status importantes
+function handleStatusChange(newStatus, previousStatus) {
+    // Se mudou de desconectado para conectado
+    if (previousStatus !== 'open' && newStatus === 'open') {
+        showNotification('🎉 WhatsApp conectado com sucesso!', 'success');
+        console.log('WhatsApp conectado!');
+    }
+    
+    // Se mudou de conectado para desconectado
+    if (previousStatus === 'open' && newStatus !== 'open') {
+        showNotification('⚠️ WhatsApp foi desconectado. Verifique sua conexão.', 'warning');
+        console.log('WhatsApp desconectado!');
+    }
+}
+
+// Variável para armazenar o status anterior
+let previousWhatsAppStatus = null; 

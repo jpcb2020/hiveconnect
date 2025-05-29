@@ -23,4 +23,9 @@ router.get('/whatsapp/qr', authMiddleware, profileController.getMyWhatsAppQR);
 // @access  Private
 router.post('/whatsapp/logout', authMiddleware, profileController.logoutMyWhatsApp);
 
+// @route   POST api/profile/whatsapp/create-instance
+// @desc    Create current user's WhatsApp instance
+// @access  Private
+router.post('/whatsapp/create-instance', authMiddleware, profileController.createMyWhatsAppInstance);
+
 module.exports = router;
