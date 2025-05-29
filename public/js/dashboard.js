@@ -167,10 +167,19 @@ function initializeContactFeatures() {
 
     // Botão importação manual
     if (manualImportBtn) {
-        manualImportBtn.addEventListener('click', () => {
-            // Implementar modal de importação manual
-            console.log('Abrir modal de importação manual');
+        manualImportBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            try {
+                showManualImportModal();
+            } catch (error) {
+                console.error('Erro ao abrir modal:', error);
+                alert('Erro ao abrir modal: ' + error.message);
+            }
         });
+    } else {
+        console.error('Botão de importação manual não encontrado!');
     }
 
     // Menu flutuante
@@ -728,6 +737,45 @@ style.textContent = `
         0%, 100% { opacity: 1; }
         50% { opacity: 0.7; }
     }
+    
+    /* Estilos para tabela de contatos */
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .status-valid {
+        background: #d1fae5;
+        color: #065f46;
+    }
+    
+    .status-invalid {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .btn-small {
+        padding: 6px 10px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.8rem;
+        transition: all 0.2s;
+    }
+    
+    .btn-danger {
+        background: #ef4444;
+        color: white;
+    }
+    
+    .btn-danger:hover {
+        background: #dc2626;
+        transform: translateY(-1px);
+    }
 `;
 document.head.appendChild(style);
 
@@ -781,4 +829,444 @@ function handleStatusChange(newStatus, previousStatus) {
 }
 
 // Variável para armazenar o status anterior
-let previousWhatsAppStatus = null; 
+let previousWhatsAppStatus = null;
+
+// Função para mostrar modal de importação manual
+function showManualImportModal() {
+    console.log('Abrindo modal de importação manual...');
+    
+    // Criar modal se não existir
+    let modal = document.getElementById('manualImportModal');
+    if (!modal) {
+        modal = createManualImportModal();
+        
+        if (!modal) {
+            console.error('Falha ao criar modal!');
+            alert('Erro: Não foi possível criar o modal');
+            return;
+        }
+    }
+    
+    // FORÇAR VISIBILIDADE - sobrescrever qualquer CSS externo
+    modal.style.setProperty('display', 'flex', 'important');
+    modal.style.setProperty('opacity', '1', 'important');
+    modal.style.setProperty('visibility', 'visible', 'important');
+    modal.style.setProperty('pointer-events', 'auto', 'important');
+    modal.style.setProperty('z-index', '999999', 'important');
+    
+    // Focar no textarea
+    const textarea = modal.querySelector('#manualContactsInput');
+    if (textarea) {
+        // Limpar conteúdo anterior
+        textarea.value = '';
+        setTimeout(() => textarea.focus(), 100);
+    }
+}
+
+// Função para criar o modal de importação manual
+function createManualImportModal() {
+    try {
+        const modal = document.createElement('div');
+        
+        modal.id = 'manualImportModal';
+        modal.className = 'modal';
+        modal.style.cssText = `
+            display: none !important;
+            position: fixed !important;
+            z-index: 999999 !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            background-color: rgba(0,0,0,0.5) !important;
+            align-items: center !important;
+            justify-content: center !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            pointer-events: auto !important;
+        `;
+        
+        modal.innerHTML = `
+            <div class="modal-content" style="
+                background: white;
+                padding: 30px;
+                border-radius: 12px;
+                width: 90%;
+                max-width: 600px;
+                max-height: 80vh;
+                overflow-y: auto;
+                position: relative;
+            ">
+                <div class="modal-header" style="
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 20px;
+                    border-bottom: 1px solid #e5e7eb;
+                    padding-bottom: 15px;
+                ">
+                    <h3 style="margin: 0; color: #1f2937; font-size: 1.25rem;">
+                        <i class="fas fa-user-plus"></i> Importar Contatos Manualmente
+                    </h3>
+                    <button class="close-modal-btn" style="
+                        background: none;
+                        border: none;
+                        font-size: 1.5rem;
+                        color: #6b7280;
+                        cursor: pointer;
+                        padding: 5px;
+                    ">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="modal-body">
+                    <div style="margin-bottom: 20px;">
+                        <label style="
+                            display: block;
+                            margin-bottom: 8px;
+                            font-weight: 600;
+                            color: #374151;
+                        ">
+                            Lista de Contatos:
+                        </label>
+                        <div style="
+                            background: #f3f4f6;
+                            border-radius: 8px;
+                            padding: 12px;
+                            margin-bottom: 12px;
+                            font-size: 0.875rem;
+                            color: #6b7280;
+                        ">
+                            <strong>Formatos aceitos:</strong><br>
+                            • Uma linha por contato: <code>Nome, Número</code><br>
+                            • Separação por vírgula: <code>João Silva, 11999999999</code><br>
+                            • Separação por tab: <code>Maria Santos	11888888888</code><br>
+                            • Números formatados: <code>55 (11) 99999-9999</code><br>
+                            • Com código país: <code>+55 11 99999-9999</code><br>
+                            • Só números (um por linha): <code>11777777777</code>
+                        </div>
+                        <textarea 
+                            id="manualContactsInput" 
+                            placeholder="Cole ou digite seus contatos aqui...
+
+Exemplos:
+João Silva, 11999999999
+Maria Santos, 55 (11) 88888-8888
+Pedro Costa	(11) 77777-7777
+11666666666
+Ana Lima, +55 11 55555-5555"
+                            style="
+                                width: 100%;
+                                height: 200px;
+                                padding: 12px;
+                                border: 2px solid #e5e7eb;
+                                border-radius: 8px;
+                                font-family: monospace;
+                                font-size: 0.9rem;
+                                resize: vertical;
+                                outline: none;
+                                transition: border-color 0.3s;
+                            "
+                        ></textarea>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <div style="
+                            background: #fef3c7;
+                            border: 1px solid #f59e0b;
+                            border-radius: 8px;
+                            padding: 12px;
+                            font-size: 0.875rem;
+                            color: #92400e;
+                        ">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Dica:</strong> Números serão automaticamente validados e formatados. 
+                            Contatos duplicados serão ignorados.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer" style="
+                    display: flex;
+                    gap: 12px;
+                    justify-content: flex-end;
+                    border-top: 1px solid #e5e7eb;
+                    padding-top: 20px;
+                ">
+                    <button class="cancel-btn" style="
+                        padding: 10px 20px;
+                        border: 1px solid #d1d5db;
+                        background: white;
+                        color: #374151;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: 500;
+                    ">
+                        Cancelar
+                    </button>
+                    <button class="import-contacts-btn" style="
+                        padding: 10px 20px;
+                        border: none;
+                        background: #10b981;
+                        color: white;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: 500;
+                    ">
+                        <i class="fas fa-upload"></i> Importar Contatos
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Adicionar eventos
+        const closeBtn = modal.querySelector('.close-modal-btn');
+        const cancelBtn = modal.querySelector('.cancel-btn');
+        const importBtn = modal.querySelector('.import-contacts-btn');
+        const textarea = modal.querySelector('#manualContactsInput');
+        
+        // Fechar modal
+        [closeBtn, cancelBtn].forEach(btn => {
+            if (btn) {
+                btn.addEventListener('click', () => {
+                    modal.style.display = 'none';
+                });
+            }
+        });
+        
+        // Fechar ao clicar fora
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+        
+        // Estilo do textarea quando focado
+        if (textarea) {
+            textarea.addEventListener('focus', () => {
+                textarea.style.borderColor = '#10b981';
+            });
+            
+            textarea.addEventListener('blur', () => {
+                textarea.style.borderColor = '#e5e7eb';
+            });
+        }
+        
+        // Processar importação
+        if (importBtn) {
+            importBtn.addEventListener('click', () => {
+                processManualImport(textarea.value);
+                modal.style.display = 'none';
+            });
+        }
+        
+        document.body.appendChild(modal);
+        
+        return modal;
+        
+    } catch (error) {
+        console.error('ERRO ao criar modal:', error);
+        alert('Erro ao criar modal: ' + error.message);
+        return null;
+    }
+}
+
+// Função para processar a importação manual
+function processManualImport(inputText) {
+    if (!inputText.trim()) {
+        showNotification('Por favor, insira pelo menos um contato', 'warning');
+        return;
+    }
+    
+    const lines = inputText.trim().split('\n');
+    const contacts = [];
+    const errors = [];
+    
+    lines.forEach((line, index) => {
+        const lineNumber = index + 1;
+        const trimmedLine = line.trim();
+        
+        if (!trimmedLine) return; // Pular linhas vazias
+        
+        let name = '';
+        let phone = '';
+        
+        // Tentar diferentes separadores
+        if (trimmedLine.includes(',')) {
+            // Separação por vírgula
+            const parts = trimmedLine.split(',').map(part => part.trim());
+            if (parts.length >= 2) {
+                name = parts[0];
+                phone = parts[1];
+            } else {
+                phone = parts[0];
+            }
+        } else if (trimmedLine.includes('\t')) {
+            // Separação por tab
+            const parts = trimmedLine.split('\t').map(part => part.trim());
+            if (parts.length >= 2) {
+                name = parts[0];
+                phone = parts[1];
+            } else {
+                phone = parts[0];
+            }
+        } else if (trimmedLine.includes(' ')) {
+            // Separação por espaço (últimos números como telefone)
+            const parts = trimmedLine.split(' ');
+            const lastPart = parts[parts.length - 1];
+            
+            // Se a última parte parece um número de telefone
+            if (/^\+?[\d\s\-\(\)]+$/.test(lastPart)) {
+                phone = lastPart;
+                name = parts.slice(0, -1).join(' ').trim();
+            } else {
+                // Tratar como só número se toda a linha parece um telefone
+                if (/^\+?[\d\s\-\(\)]+$/.test(trimmedLine)) {
+                    phone = trimmedLine;
+                } else {
+                    errors.push(`Linha ${lineNumber}: Formato não reconhecido - "${trimmedLine}"`);
+                    return;
+                }
+            }
+        } else {
+            // Assumir que é só um número de telefone
+            phone = trimmedLine;
+        }
+        
+        // Validar e limpar telefone
+        const cleanPhone = cleanPhoneNumber(phone);
+        if (!cleanPhone || !isValidPhoneNumber(cleanPhone)) {
+            errors.push(`Linha ${lineNumber}: Número inválido - "${phone}"`);
+            return;
+        }
+        
+        // Se não tem nome, gerar um baseado no número
+        if (!name.trim()) {
+            name = `Contato ${cleanPhone.slice(-4)}`;
+        }
+        
+        contacts.push({
+            name: name.trim(),
+            phone: cleanPhone,
+            status: 'válido'
+        });
+    });
+    
+    // Remover duplicatas
+    const uniqueContacts = removeDuplicateContacts(contacts);
+    const duplicatesRemoved = contacts.length - uniqueContacts.length;
+    
+    // Adicionar contatos à tabela
+    addContactsToTable(uniqueContacts);
+    
+    // Mostrar resultados
+    let message = `${uniqueContacts.length} contatos importados com sucesso!`;
+    if (duplicatesRemoved > 0) {
+        message += ` (${duplicatesRemoved} duplicatas removidas)`;
+    }
+    if (errors.length > 0) {
+        message += ` ${errors.length} linhas com erro.`;
+    }
+    
+    showNotification(message, uniqueContacts.length > 0 ? 'success' : 'warning');
+    
+    // Mostrar erros se houver
+    if (errors.length > 0) {
+        console.warn('Erros na importação:', errors);
+        setTimeout(() => {
+            showNotification(`Verifique o console para detalhes dos ${errors.length} erros`, 'info');
+        }, 3000);
+    }
+}
+
+// Função para limpar número de telefone
+function cleanPhoneNumber(phone) {
+    // Remove tudo exceto números e o sinal de +
+    // Inclui remoção de parênteses, hífen, espaços e outros símbolos
+    return phone.replace(/[^\d+]/g, '');
+}
+
+// Função para validar número de telefone
+function isValidPhoneNumber(phone) {
+    // Remove o + se existir para validação
+    const cleanPhone = phone.replace(/^\+/, '');
+    
+    // Validar se tem pelo menos 10 dígitos e no máximo 15
+    if (cleanPhone.length < 10 || cleanPhone.length > 15) {
+        return false;
+    }
+    
+    // Validar se são todos números
+    return /^\d+$/.test(cleanPhone);
+}
+
+// Função para remover contatos duplicados
+function removeDuplicateContacts(contacts) {
+    const seen = new Set();
+    return contacts.filter(contact => {
+        const key = contact.phone;
+        if (seen.has(key)) {
+            return false;
+        }
+        seen.add(key);
+        return true;
+    });
+}
+
+// Função para adicionar contatos à tabela
+function addContactsToTable(contacts) {
+    const tableBody = document.getElementById('contactTableBody');
+    if (!tableBody) return;
+    
+    contacts.forEach(contact => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${contact.name}</td>
+            <td>${formatPhoneNumber(contact.phone)}</td>
+            <td><span class="status-badge status-valid">${contact.status}</span></td>
+            <td>
+                <button class="btn-small btn-danger" onclick="removeContact(this)">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+    
+    // Atualizar estatísticas
+    updateContactStatsFromTable();
+}
+
+// Função para formatar número de telefone para exibição
+function formatPhoneNumber(phone) {
+    // Remove o + se existir e retorna apenas os números
+    const cleanPhone = phone.replace(/^\+/, '');
+    
+    // Retornar apenas os números limpos, sem formatação
+    return cleanPhone;
+}
+
+// Função para remover contato individual
+function removeContact(button) {
+    const row = button.closest('tr');
+    if (row && confirm('Tem certeza que deseja remover este contato?')) {
+        row.remove();
+        updateContactStatsFromTable();
+        showNotification('Contato removido', 'info');
+    }
+}
+
+// Função para atualizar estatísticas baseado na tabela
+function updateContactStatsFromTable() {
+    const tableBody = document.getElementById('contactTableBody');
+    if (!tableBody) return;
+    
+    const rows = tableBody.querySelectorAll('tr');
+    const total = rows.length;
+    const valid = Array.from(rows).filter(row => 
+        row.querySelector('.status-valid')
+    ).length;
+    
+    updateContactStats(total, valid);
+} 
