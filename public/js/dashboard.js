@@ -893,8 +893,6 @@ function createManualImportModal() {
                 border-radius: 12px;
                 width: 90%;
                 max-width: 600px;
-                max-height: 80vh;
-                overflow-y: auto;
                 position: relative;
             ">
                 <div class="modal-header" style="
@@ -948,14 +946,7 @@ function createManualImportModal() {
                         </div>
                         <textarea 
                             id="manualContactsInput" 
-                            placeholder="Cole ou digite seus contatos aqui...
-
-Exemplos:
-João Silva, 11999999999
-Maria Santos, 55 (11) 88888-8888
-Pedro Costa	(11) 77777-7777
-11666666666
-Ana Lima, +55 11 55555-5555"
+                            placeholder=""
                             style="
                                 width: 100%;
                                 height: 200px;
