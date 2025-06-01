@@ -85,7 +85,7 @@ async function callHiveWPAPI(endpoint, method = 'GET', data = null) {
 async function createWhatsAppInstance(userEmail, options = {}) {
     try {
         // Usar o email como clientId (sanitizado para evitar caracteres especiais)
-        const clientId = userEmail.replace(/[^a-zA-Z0-9@.-]/g, '_').toLowerCase();
+        const clientId = userEmail.replace(/[^a-zA-Z0-9@.-]/g, '_').toLowerCase(); 
         
         const instanceConfig = {
             clientId: clientId,
