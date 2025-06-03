@@ -358,30 +358,23 @@ function updateConnectionUI(statusData) {
             // A notificação já foi disparada pela função handleStatusChange
             console.log('Status changed to connected, notification handled by handleStatusChange');
         }
-    } else if (status === 'connecting' || status === 'qr' || status === 'qr_code') {
-        // Aguardando conexão via QR Code
+    } else if (status === 'connecting' || status === 'qr' || status === 'qr_code' || status === 'close' || status === 'closed') {
+        // Aguardando conexão via QR Code (incluindo "close" que significa instância existe mas não conectada)
         connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Aguardando QR Code';
         connectionStatus.className = 'connection-status connecting';
         connectBtn.style.display = 'none';
         disconnectBtn.style.display = 'block';
         refreshBtn.style.display = 'block';
-        console.log('Status QR Code ativo, aguardando escaneamento...');
-    } else if (status === 'close' || status === 'closed') {
-        // Conexão fechada/perdida
-        connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Conexão Perdida';
-        connectionStatus.className = 'connection-status disconnected';
-        connectBtn.style.display = 'block';
-        disconnectBtn.style.display = 'none';
-        refreshBtn.style.display = 'none';
-        qrContainer.innerHTML = `
-            <div class="qr-placeholder disconnected">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>Conexão perdida</p>
-                <p class="connection-details">Clique em "Iniciar Conexão" para reconectar</p>
-            </div>
-        `;
+        console.log('Status QR Code ativo, aguardando escaneamento...', status);
+        
+        // Se o QR container estiver vazio ou com placeholder, tentar buscar QR Code
+        if (qrContainer.innerHTML.includes('qr-placeholder') || qrContainer.innerHTML.trim() === '') {
+            fetchAndDisplayQRCode().catch(error => {
+                console.error('Erro ao buscar QR Code automaticamente:', error);
+            });
+        }
     } else {
-        // Estado desconectado padrão
+        // Estado desconectado padrão (outros status não reconhecidos)
         connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Desconectado';
         connectionStatus.className = 'connection-status disconnected';
         connectBtn.style.display = 'block';
