@@ -255,19 +255,36 @@ function initializeWhatsAppConnection() {
         refreshBtn.addEventListener('click', refreshQRCode);
     }
 
-    // Não verificar status automaticamente - só quando o usuário clicar
-    // Inicializar com estado desconectado
-    updateConnectionUI({ status: 'disconnected' });
+    // Fazer uma verificação inicial de status ao carregar a página
+    console.log('Verificando status inicial do WhatsApp...');
+    checkWhatsAppStatus().then(() => {
+        console.log('Verificação inicial concluída');
+    }).catch(error => {
+        console.error('Erro na verificação inicial:', error);
+        // Se houver erro, inicializar como desconectado
+        updateConnectionUI({ status: 'disconnected' });
+    });
 }
 
 async function checkWhatsAppStatus() {
     try {
+        console.log('Verificando status do WhatsApp...');
         const response = await authenticatedFetch('/api/profile/whatsapp/status');
         const data = await response.json();
+        
+        console.log('Resposta do status WhatsApp:', { status: response.status, data });
         
         if (response.ok && data.status) {
             console.log('Status WhatsApp recebido:', data);
             updateConnectionUI(data);
+            
+            // Se status indica que precisa de QR Code ou já está conectado, iniciar monitoramento
+            const status = data.status.status || data.status;
+            if (status === 'open' || status === 'connected' || status === 'connecting' || status === 'qr' || status === 'qr_code' || status === 'close' || status === 'closed') {
+                if (!statusMonitoringInterval) {
+                    startStatusMonitoring();
+                }
+            }
         } else {
             // Status não encontrado - provavelmente não conectado
             console.log('Status não encontrado ou resposta inválida:', data);
@@ -461,8 +478,10 @@ async function connectWhatsApp() {
                     updateConnectionUI({ status: 'qr_code' });
                     showNotification('QR Code carregado! Escaneie com seu WhatsApp.', 'info');
                 
-                // Agora iniciar verificação periódica de status
-                startStatusMonitoring();
+                // Iniciar verificação periódica de status apenas se não estiver rodando
+                if (!statusMonitoringInterval) {
+                    startStatusMonitoring();
+                }
                 } catch (qrError) {
                     console.error('Erro ao buscar QR Code:', qrError);
                 showNotification('Erro ao carregar QR Code. Tente novamente.', 'error');
