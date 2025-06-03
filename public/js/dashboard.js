@@ -255,11 +255,9 @@ function initializeWhatsAppConnection() {
         refreshBtn.addEventListener('click', refreshQRCode);
     }
 
-    // Verificar status inicial
-    checkWhatsAppStatus();
-    
-    // Verificar status periodicamente (a cada 10 segundos)
-    setInterval(checkWhatsAppStatus, 10000);
+    // Não verificar status automaticamente - só quando o usuário clicar
+    // Inicializar com estado desconectado
+    updateConnectionUI({ status: 'disconnected' });
 }
 
 async function checkWhatsAppStatus() {
@@ -278,6 +276,30 @@ async function checkWhatsAppStatus() {
     } catch (error) {
         console.error('Erro ao verificar status WhatsApp:', error);
         updateConnectionUI({ status: 'disconnected' });
+    }
+}
+
+// Variável para controlar o intervalo de verificação de status
+let statusMonitoringInterval = null;
+
+// Função para iniciar monitoramento de status
+function startStatusMonitoring() {
+    // Se já existe um intervalo, limpar antes
+    if (statusMonitoringInterval) {
+        clearInterval(statusMonitoringInterval);
+    }
+    
+    // Iniciar verificação a cada 10 segundos
+    statusMonitoringInterval = setInterval(checkWhatsAppStatus, 10000);
+    console.log('Monitoramento de status WhatsApp iniciado');
+}
+
+// Função para parar monitoramento de status
+function stopStatusMonitoring() {
+    if (statusMonitoringInterval) {
+        clearInterval(statusMonitoringInterval);
+        statusMonitoringInterval = null;
+        console.log('Monitoramento de status WhatsApp parado');
     }
 }
 
@@ -402,38 +424,24 @@ async function connectWhatsApp() {
     connectBtn.disabled = true;
     
     try {
-        // Criar uma nova instância WhatsApp
-        const createResponse = await authenticatedFetch('/api/profile/whatsapp/create-instance', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                options: {
-                    ignoreGroups: true
-                }
-            })
-        });
-
-        const createData = await createResponse.json();
-
-        if (createResponse.ok && createData.success) {
-            showNotification('Instância WhatsApp criada! Carregando QR Code...', 'success');
-            
-            // Aguardar um pouco antes de buscar o QR Code
-            setTimeout(async () => {
-                try {
-                    await fetchAndDisplayQRCode();
-                    updateConnectionUI({ status: 'qr_code' });
-                    showNotification('QR Code carregado! Escaneie com seu WhatsApp.', 'info');
-                } catch (qrError) {
-                    console.error('Erro ao buscar QR Code:', qrError);
-                    showNotification('Instância criada, mas erro ao carregar QR Code. Tente atualizar.', 'warning');
-                }
-            }, 2000);
-        } else {
-            showNotification(createData.msg || 'Erro ao criar instância WhatsApp', 'error');
-        }
+        // Ir direto para buscar o QR Code sem criar instância
+        showNotification('Carregando QR Code...', 'info');
+        
+        // Aguardar um pouco antes de buscar o QR Code
+        setTimeout(async () => {
+            try {
+                await fetchAndDisplayQRCode();
+                updateConnectionUI({ status: 'qr_code' });
+                showNotification('QR Code carregado! Escaneie com seu WhatsApp.', 'info');
+                
+                // Agora iniciar verificação periódica de status
+                startStatusMonitoring();
+            } catch (qrError) {
+                console.error('Erro ao buscar QR Code:', qrError);
+                showNotification('Erro ao carregar QR Code. Tente novamente.', 'error');
+            }
+        }, 1000);
+        
     } catch (error) {
         console.error('Erro ao conectar WhatsApp:', error);
         showNotification('Erro ao conectar WhatsApp', 'error');
@@ -469,6 +477,8 @@ async function disconnectWhatsApp() {
         if (response.ok && data.success) {
             showNotification('WhatsApp desconectado com sucesso!', 'success');
             updateConnectionUI({ status: 'disconnected' });
+            // Parar monitoramento de status
+            stopStatusMonitoring();
         } else {
             showNotification(data.msg || 'Erro ao desconectar WhatsApp', 'error');
         }
@@ -594,33 +604,90 @@ function updateContactStats(total, valid) {
     if (validElement) validElement.textContent = valid;
 }
 
+// Array para controlar notificações ativas
+let activeNotifications = [];
+
 function showNotification(message, type = 'info') {
-    // Criar notificação simples
+    // Criar notificação
     const notification = document.createElement('div');
+    const notificationId = Date.now() + Math.random(); // ID único
     notification.className = `notification notification-${type}`;
     notification.textContent = message;
+    notification.setAttribute('data-notification-id', notificationId);
+    notification.title = 'Clique para fechar'; // Tooltip
+    
+    // Calcular posição baseada nas notificações existentes
+    const topPosition = 20 + (activeNotifications.length * 70); // 70px de espaçamento entre notificações
+    
     notification.style.cssText = `
         position: fixed;
-        top: 20px;
+        top: ${topPosition}px;
         right: 20px;
         padding: 12px 20px;
         border-radius: 6px;
-        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
         color: white;
         z-index: 10000;
         animation: slideIn 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        font-weight: 500;
+        max-width: 350px;
+        word-wrap: break-word;
     `;
+    
+    // Event listener para fechar ao clicar
+    notification.addEventListener('click', () => {
+        removeNotification(notificationId);
+    });
+    
+    // Adicionar à lista de notificações ativas
+    activeNotifications.push({
+        id: notificationId,
+        element: notification,
+        topPosition: topPosition
+    });
     
     document.body.appendChild(notification);
     
+    // Remover notificação após 4 segundos
     setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 300);
-    }, 3000);
+        removeNotification(notificationId);
+    }, 4000);
+}
+
+// Função para remover notificação e reposicionar as outras
+function removeNotification(notificationId) {
+    const notificationIndex = activeNotifications.findIndex(n => n.id === notificationId);
+    
+    if (notificationIndex === -1) return;
+    
+    const notification = activeNotifications[notificationIndex];
+    
+    // Animar saída
+    notification.element.style.animation = 'slideOut 0.3s ease';
+    
+    setTimeout(() => {
+        // Remover do DOM
+        if (notification.element.parentNode) {
+            notification.element.parentNode.removeChild(notification.element);
+        }
+        
+        // Remover da lista
+        activeNotifications.splice(notificationIndex, 1);
+        
+        // Reposicionar notificações restantes
+        repositionNotifications();
+    }, 300);
+}
+
+// Função para reposicionar notificações após remoção
+function repositionNotifications() {
+    activeNotifications.forEach((notification, index) => {
+        const newTopPosition = 20 + (index * 70);
+        notification.element.style.top = `${newTopPosition}px`;
+        notification.element.style.transition = 'top 0.3s ease';
+        notification.topPosition = newTopPosition;
+    });
 }
 
 // Adicionar estilos de animação
@@ -633,6 +700,41 @@ style.textContent = `
     @keyframes slideOut {
         from { transform: translateX(0); opacity: 1; }
         to { transform: translateX(100%); opacity: 0; }
+    }
+    
+    /* Estilos para notificações */
+    .notification {
+        font-family: 'Poppins', sans-serif;
+        font-size: 14px;
+        line-height: 1.4;
+        transition: top 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
+        cursor: pointer;
+        user-select: none;
+    }
+    
+    .notification:hover {
+        transform: translateX(-5px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2) !important;
+    }
+    
+    .notification-success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+        border-left: 4px solid #065f46;
+    }
+    
+    .notification-error {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+        border-left: 4px solid #991b1b;
+    }
+    
+    .notification-warning {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+        border-left: 4px solid #92400e;
+    }
+    
+    .notification-info {
+        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+        border-left: 4px solid #1d4ed8;
     }
     
     /* Estilos para feedback visual do WhatsApp */

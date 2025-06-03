@@ -26,6 +26,7 @@ router.post('/whatsapp/logout', authMiddleware, profileController.logoutMyWhatsA
 // @route   POST api/profile/whatsapp/create-instance
 // @desc    Create current user's WhatsApp instance
 // @access  Private
-router.post('/whatsapp/create-instance', authMiddleware, profileController.createMyWhatsAppInstance);
+// COMENTADO: Não é mais necessário criar instância manualmente
+// router.post('/whatsapp/create-instance', authMiddleware, profileController.createMyWhatsAppInstance);
 
 module.exports = router;
