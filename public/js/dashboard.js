@@ -281,6 +281,8 @@ async function checkWhatsAppStatus() {
 
 // Variável para controlar o intervalo de verificação de status
 let statusMonitoringInterval = null;
+// Variável para evitar múltiplas buscas simultâneas de QR Code
+let isFetchingQRCode = false;
 
 // Função para iniciar monitoramento de status
 function startStatusMonitoring() {
@@ -367,12 +369,11 @@ function updateConnectionUI(statusData) {
         refreshBtn.style.display = 'block';
         console.log('Status QR Code ativo, aguardando escaneamento...', status);
         
-        // Se o QR container estiver vazio ou com placeholder, tentar buscar QR Code
-        if (qrContainer.innerHTML.includes('qr-placeholder') || qrContainer.innerHTML.trim() === '') {
-            fetchAndDisplayQRCode().catch(error => {
-                console.error('Erro ao buscar QR Code automaticamente:', error);
-            });
-        }
+        // Sempre tentar buscar QR Code quando estiver nesses status (exceto se já estiver conectado)
+        console.log('Buscando QR Code automaticamente para status:', status);
+        fetchAndDisplayQRCode().catch(error => {
+            console.error('Erro ao buscar QR Code automaticamente:', error);
+        });
     } else {
         // Estado desconectado padrão (outros status não reconhecidos)
         connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Desconectado';
@@ -391,18 +392,51 @@ function updateConnectionUI(statusData) {
 }
 
 async function fetchAndDisplayQRCode() {
+    // Evitar múltiplas chamadas simultâneas
+    if (isFetchingQRCode) {
+        console.log('QR Code já está sendo buscado, aguardando...');
+        return;
+    }
+    
+    isFetchingQRCode = true;
+    
     try {
+        console.log('Iniciando busca do QR Code...');
         const response = await authenticatedFetch('/api/profile/whatsapp/qr');
         const data = await response.json();
         
+        console.log('Resposta da API QR Code:', { status: response.status, data });
+        
         if (response.ok && data.success && data.qrCode) {
             const qrContainer = document.getElementById('qrContainer');
-            qrContainer.innerHTML = `<img src="${data.qrCode}" alt="QR Code WhatsApp">`;
+            qrContainer.innerHTML = `<img src="${data.qrCode}" alt="QR Code WhatsApp" style="max-width: 100%; height: auto; border-radius: 8px;">`;
+            console.log('QR Code exibido com sucesso!');
         } else {
-            console.log('QR Code não disponível:', data.msg || 'Erro desconhecido');
+            console.log('QR Code não disponível:', data);
+            const qrContainer = document.getElementById('qrContainer');
+            qrContainer.innerHTML = `
+                <div class="qr-placeholder">
+                    <i class="fas fa-qrcode"></i>
+                    <p>QR Code não disponível</p>
+                    <p class="connection-details">Tente atualizar ou iniciar nova conexão</p>
+                </div>
+            `;
         }
     } catch (error) {
         console.error('Erro ao buscar QR Code:', error);
+        const qrContainer = document.getElementById('qrContainer');
+        qrContainer.innerHTML = `
+            <div class="qr-placeholder">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Erro ao carregar QR Code</p>
+                <p class="connection-details">Verifique sua conexão e tente novamente</p>
+            </div>
+        `;
+    } finally {
+        // Liberar o lock após 2 segundos para permitir nova tentativa
+        setTimeout(() => {
+            isFetchingQRCode = false;
+        }, 2000);
     }
 }
 
@@ -419,20 +453,20 @@ async function connectWhatsApp() {
     try {
         // Ir direto para buscar o QR Code sem criar instância
         showNotification('Carregando QR Code...', 'info');
-        
-        // Aguardar um pouco antes de buscar o QR Code
-        setTimeout(async () => {
-            try {
-                await fetchAndDisplayQRCode();
-                updateConnectionUI({ status: 'qr_code' });
-                showNotification('QR Code carregado! Escaneie com seu WhatsApp.', 'info');
+            
+            // Aguardar um pouco antes de buscar o QR Code
+            setTimeout(async () => {
+                try {
+                    await fetchAndDisplayQRCode();
+                    updateConnectionUI({ status: 'qr_code' });
+                    showNotification('QR Code carregado! Escaneie com seu WhatsApp.', 'info');
                 
                 // Agora iniciar verificação periódica de status
                 startStatusMonitoring();
-            } catch (qrError) {
-                console.error('Erro ao buscar QR Code:', qrError);
+                } catch (qrError) {
+                    console.error('Erro ao buscar QR Code:', qrError);
                 showNotification('Erro ao carregar QR Code. Tente novamente.', 'error');
-            }
+        }
         }, 1000);
         
     } catch (error) {
@@ -659,18 +693,18 @@ function removeNotification(notificationId) {
     // Animar saída
     notification.element.style.animation = 'slideOut 0.3s ease';
     
-    setTimeout(() => {
+        setTimeout(() => {
         // Remover do DOM
         if (notification.element.parentNode) {
             notification.element.parentNode.removeChild(notification.element);
-        }
+            }
         
         // Remover da lista
         activeNotifications.splice(notificationIndex, 1);
         
         // Reposicionar notificações restantes
         repositionNotifications();
-    }, 300);
+        }, 300);
 }
 
 // Função para reposicionar notificações após remoção
