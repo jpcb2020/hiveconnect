@@ -12,6 +12,13 @@
  * - Integração real com API WhatsApp usando o email do JWT
  */
 
+// Variáveis globais para controle do WhatsApp
+let userInitiatedConnection = false; // Controla se o usuário iniciou a conexão
+let isInitialStatusCheck = true; // Flag para identificar verificação inicial do status
+let statusMonitoringInterval = null;
+let isFetchingQRCode = false;
+let previousWhatsAppStatus = null;
+
 document.addEventListener('DOMContentLoaded', function() {
     console.log('Dashboard carregado');
     
@@ -63,6 +70,13 @@ document.addEventListener('DOMContentLoaded', function() {
     if (settingsToggle && broadcastSection) {
         settingsToggle.addEventListener('click', (e) => {
             e.preventDefault();
+            
+            // Rolar página ao topo quando abrir configurações
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+            
             broadcastSection.classList.toggle('active');
             
             // Atualizar classe active no link
@@ -202,26 +216,35 @@ function initializeMessageFeatures() {
     }
 
     // Botão Spintax
-    if (spintaxBtn && spintaxModal) {
+    if (spintaxBtn) {
         spintaxBtn.addEventListener('click', () => {
-            spintaxModal.classList.add('active');
+            if (spintaxModal) {
+                spintaxModal.classList.add('active');
+            }
         });
     }
 
-    // Fechar modais
-    if (closeModalBtns) {
-        closeModalBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.modal').forEach(modal => {
-                    modal.classList.remove('active');
-                });
-            });
+    // Fechar modal
+    closeModalBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (spintaxModal) {
+                spintaxModal.classList.remove('active');
+            }
         });
-    }
+    });
 
     // Inserir Spintax
     if (insertSpintaxBtn) {
         insertSpintaxBtn.addEventListener('click', insertSpintax);
+    }
+
+    // Fechar modal ao clicar fora
+    if (spintaxModal) {
+        spintaxModal.addEventListener('click', (e) => {
+            if (e.target === spintaxModal) {
+                spintaxModal.classList.remove('active');
+            }
+        });
     }
 
     // Botões de anexo
@@ -296,11 +319,6 @@ async function checkWhatsAppStatus() {
     }
 }
 
-// Variável para controlar o intervalo de verificação de status
-let statusMonitoringInterval = null;
-// Variável para evitar múltiplas buscas simultâneas de QR Code
-let isFetchingQRCode = false;
-
 // Função para iniciar monitoramento de status
 function startStatusMonitoring() {
     // Se já existe um intervalo, limpar antes
@@ -349,6 +367,19 @@ function updateConnectionUI(statusData) {
 
     console.log('Status processado:', { status, isConnected, originalData: statusData });
 
+    // REGRA ESPECIAL: Na verificação inicial, tratar "connecting" como "desconectado"
+    if (isInitialStatusCheck && status === 'connecting') {
+        console.log('Status inicial "connecting" tratado como desconectado');
+        status = 'disconnected'; // Forçar status como desconectado
+        isConnected = false; // Garantir que não seja considerado conectado
+    }
+
+    // Marcar que a verificação inicial foi concluída
+    if (isInitialStatusCheck) {
+        isInitialStatusCheck = false;
+        console.log('Verificação inicial concluída');
+    }
+
     // Verificar mudanças de status e notificar
     if (previousWhatsAppStatus !== null && previousWhatsAppStatus !== status) {
         handleStatusChange(status, previousWhatsAppStatus);
@@ -377,8 +408,8 @@ function updateConnectionUI(statusData) {
             // A notificação já foi disparada pela função handleStatusChange
             console.log('Status changed to connected, notification handled by handleStatusChange');
         }
-    } else if (status === 'connecting' || status === 'qr' || status === 'qr_code' || status === 'close' || status === 'closed') {
-        // Aguardando conexão via QR Code (incluindo "close" que significa instância existe mas não conectada)
+    } else if (status === 'connecting' || status === 'qr' || status === 'qr_code') {
+        // Aguardando conexão via QR Code (apenas para status que realmente aguardam scan)
         connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Aguardando QR Code';
         connectionStatus.className = 'connection-status connecting';
         connectBtn.style.display = 'none';
@@ -386,11 +417,37 @@ function updateConnectionUI(statusData) {
         refreshBtn.style.display = 'block';
         console.log('Status QR Code ativo, aguardando escaneamento...', status);
         
-        // Sempre tentar buscar QR Code quando estiver nesses status (exceto se já estiver conectado)
-        console.log('Buscando QR Code automaticamente para status:', status);
-        fetchAndDisplayQRCode().catch(error => {
-            console.error('Erro ao buscar QR Code automaticamente:', error);
-        });
+        // ALTERAÇÃO PRINCIPAL: Só buscar QR Code se o usuário iniciou a conexão
+        if (userInitiatedConnection) {
+            console.log('Buscando QR Code automaticamente para status:', status);
+            fetchAndDisplayQRCode().catch(error => {
+                console.error('Erro ao buscar QR Code automaticamente:', error);
+            });
+        } else {
+            // Mostrar placeholder quando conexão não foi iniciada pelo usuário
+            qrContainer.innerHTML = `
+                <div class="qr-placeholder">
+                    <i class="fas fa-qrcode"></i>
+                    <p>Aguardando QR Code</p>
+                    <p class="connection-details">Clique em "Iniciar Conexão" para começar</p>
+                </div>
+            `;
+        }
+    } else if (status === 'close' || status === 'closed') {
+        // Instância existe mas está desconectada - tratar como desconectado
+        connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Desconectado';
+        connectionStatus.className = 'connection-status disconnected';
+        connectBtn.style.display = 'block';
+        disconnectBtn.style.display = 'none';
+        refreshBtn.style.display = 'none';
+        console.log('WhatsApp desconectado (instância inativa):', status);
+        qrContainer.innerHTML = `
+            <div class="qr-placeholder">
+                <i class="fas fa-qrcode"></i>
+                <p>WhatsApp Desconectado</p>
+                <p class="connection-details">Clique em "Iniciar Conexão" para começar</p>
+            </div>
+        `;
     } else {
         // Estado desconectado padrão (outros status não reconhecidos)
         connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Desconectado';
@@ -401,7 +458,7 @@ function updateConnectionUI(statusData) {
         qrContainer.innerHTML = `
             <div class="qr-placeholder">
                 <i class="fas fa-qrcode"></i>
-                <p>Aguardando QR Code</p>
+                <p>WhatsApp Desconectado</p>
                 <p class="connection-details">Clique em "Iniciar Conexão" para começar</p>
             </div>
         `;
@@ -443,17 +500,14 @@ async function fetchAndDisplayQRCode() {
         console.error('Erro ao buscar QR Code:', error);
         const qrContainer = document.getElementById('qrContainer');
         qrContainer.innerHTML = `
-            <div class="qr-placeholder">
+            <div class="qr-placeholder error">
                 <i class="fas fa-exclamation-triangle"></i>
                 <p>Erro ao carregar QR Code</p>
                 <p class="connection-details">Verifique sua conexão e tente novamente</p>
             </div>
         `;
     } finally {
-        // Liberar o lock após 2 segundos para permitir nova tentativa
-        setTimeout(() => {
-            isFetchingQRCode = false;
-        }, 2000);
+        isFetchingQRCode = false;
     }
 }
 
@@ -463,6 +517,9 @@ async function connectWhatsApp() {
     if (!checkAuthenticationStatus()) {
         return;
     }
+
+    // ALTERAÇÃO PRINCIPAL: Definir que foi iniciado pelo usuário
+    userInitiatedConnection = true;
 
     connectBtn.textContent = 'Conectando...';
     connectBtn.disabled = true;
@@ -523,8 +580,8 @@ async function disconnectWhatsApp() {
         if (response.ok && data.success) {
             showNotification('WhatsApp desconectado com sucesso!', 'success');
             updateConnectionUI({ status: 'disconnected' });
-            // Parar monitoramento de status
-            stopStatusMonitoring();
+            // ALTERAÇÃO: Reset do estado da conexão
+            resetConnectionState();
         } else {
             showNotification(data.msg || 'Erro ao desconectar WhatsApp', 'error');
         }
@@ -554,6 +611,12 @@ async function refreshQRCode() {
         refreshBtn.innerHTML = originalText;
         refreshBtn.disabled = false;
     }
+}
+
+// NOVA FUNÇÃO: Reset do estado da conexão
+function resetConnectionState() {
+    userInitiatedConnection = false;
+    stopStatusMonitoring();
 }
 
 // Menu flutuante
@@ -975,9 +1038,6 @@ function handleStatusChange(newStatus, previousStatus) {
         console.log('WhatsApp desconectado!');
     }
 }
-
-// Variável para armazenar o status anterior
-let previousWhatsAppStatus = null;
 
 // Função para mostrar modal de importação manual
 function showManualImportModal() {
