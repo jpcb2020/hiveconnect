@@ -326,9 +326,9 @@ function startStatusMonitoring() {
         clearInterval(statusMonitoringInterval);
     }
     
-    // Iniciar verificação a cada 10 segundos
-    statusMonitoringInterval = setInterval(checkWhatsAppStatus, 10000);
-    console.log('Monitoramento de status WhatsApp iniciado');
+    // Iniciar verificação a cada 3 segundos (antes eram 10)
+    statusMonitoringInterval = setInterval(checkWhatsAppStatus, 3000);
+    console.log('Monitoramento de status WhatsApp iniciado (intervalo: 3s)');
 }
 
 // Função para parar monitoramento de status
@@ -562,6 +562,10 @@ async function disconnectWhatsApp() {
     if (!confirm('Tem certeza que deseja desconectar do WhatsApp?')) {
         return;
     }
+
+    // Resetar para que a próxima verificação de status seja tratada como inicial
+    isInitialStatusCheck = true;
+    console.log('isInitialStatusCheck resetado para true no início da desconexão.');
 
     const disconnectBtn = document.getElementById('disconnectWhatsApp');
     disconnectBtn.textContent = 'Desconectando...';
