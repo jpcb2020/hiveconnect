@@ -207,9 +207,13 @@ function initializeContactFeatures() {
 function initializeMessageFeatures() {
     const nameVarBtn = document.getElementById('nameVarBtn');
     const spintaxBtn = document.getElementById('spintaxBtn');
+    const customVarsBtn = document.getElementById('customVarsBtn');
     const spintaxModal = document.getElementById('spintaxModal');
+    const customVarsModal = document.getElementById('customVarsModal');
     const closeModalBtns = document.querySelectorAll('.close-modal');
+    const closeVarsModalBtns = document.querySelectorAll('.close-vars-modal');
     const insertSpintaxBtn = document.getElementById('insertSpintax');
+    const varButtons = document.querySelectorAll('.var-btn');
 
     // Botão variável nome
     if (nameVarBtn) {
@@ -226,12 +230,30 @@ function initializeMessageFeatures() {
             }
         });
     }
+    
+    // Botão Variáveis Personalizadas
+    if (customVarsBtn) {
+        customVarsBtn.addEventListener('click', () => {
+            if (customVarsModal) {
+                customVarsModal.classList.add('active');
+            }
+        });
+    }
 
-    // Fechar modal
+    // Fechar modal spintax
     closeModalBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             if (spintaxModal) {
                 spintaxModal.classList.remove('active');
+            }
+        });
+    });
+    
+    // Fechar modal variáveis
+    closeVarsModalBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (customVarsModal) {
+                customVarsModal.classList.remove('active');
             }
         });
     });
@@ -240,12 +262,35 @@ function initializeMessageFeatures() {
     if (insertSpintaxBtn) {
         insertSpintaxBtn.addEventListener('click', insertSpintax);
     }
+    
+    // Inserir variáveis personalizadas
+    varButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const varName = btn.getAttribute('data-var');
+            if (varName) {
+                insertTextAtCursor(`{{${varName}}}`);
+                if (customVarsModal) {
+                    customVarsModal.classList.remove('active');
+                }
+                showNotification(`Variável ${varName.toUpperCase()} inserida`, 'success');
+            }
+        });
+    });
 
-    // Fechar modal ao clicar fora
+    // Fechar modal spintax ao clicar fora
     if (spintaxModal) {
         spintaxModal.addEventListener('click', (e) => {
             if (e.target === spintaxModal) {
                 spintaxModal.classList.remove('active');
+            }
+        });
+    }
+    
+    // Fechar modal variáveis ao clicar fora
+    if (customVarsModal) {
+        customVarsModal.addEventListener('click', (e) => {
+            if (e.target === customVarsModal) {
+                customVarsModal.classList.remove('active');
             }
         });
     }
@@ -781,6 +826,9 @@ function processTextFile(content, fileType) {
         
         let name = '';
         let phone = '';
+        let var1 = '';
+        let var2 = '';
+        let var3 = '';
         
         try {
             // Processar baseado no separador
@@ -789,6 +837,10 @@ function processTextFile(content, fileType) {
                 if (parts.length >= 2) {
                     name = parts[0];
                     phone = parts[1];
+                    // Capturar variáveis adicionais se existirem
+                    var1 = parts[2] || '';
+                    var2 = parts[3] || '';
+                    var3 = parts[4] || '';
                 } else {
                     phone = parts[0];
                 }
@@ -830,6 +882,9 @@ function processTextFile(content, fileType) {
             contacts.push({
                 name: name.trim(),
                 phone: cleanPhone,
+                var1: var1,
+                var2: var2,
+                var3: var3,
                 status: 'válido'
             });
         } catch (error) {
@@ -886,12 +941,20 @@ function processExcelFile(data) {
             try {
                 let name = '';
                 let phone = '';
+                let var1 = '';
+                let var2 = '';
+                let var3 = '';
                 
                 // Tratar diferentes formatos de linhas
                 if (row.length >= 2) {
                     // Assumir que a primeira coluna é o nome e a segunda é o telefone
                     name = String(row[0] || '').trim();
                     phone = String(row[1] || '').trim();
+                    
+                    // Capturar variáveis adicionais se existirem
+                    var1 = row.length > 2 ? String(row[2] || '').trim() : '';
+                    var2 = row.length > 3 ? String(row[3] || '').trim() : '';
+                    var3 = row.length > 4 ? String(row[4] || '').trim() : '';
                 } else {
                     // Se só tem uma coluna, assumir que é o telefone
                     phone = String(row[0] || '').trim();
@@ -912,6 +975,9 @@ function processExcelFile(data) {
                 contacts.push({
                     name: name,
                     phone: cleanPhone,
+                    var1: var1,
+                    var2: var2,
+                    var3: var3,
                     status: 'válido'
                 });
             } catch (error) {
@@ -1533,9 +1599,9 @@ function createManualImportModal() {
                             color: #6b7280;
                         ">
                             <strong>Formatos aceitos:</strong><br>
-                            • Uma linha por contato: <code>Nome, Número</code><br>
-                            • Separação por vírgula: <code>João Silva, 11999999999</code><br>
-                            • Separação por tab: <code>Maria Santos	11888888888</code><br>
+                            • Uma linha por contato: <code>Nome, Número, VAR1, VAR2, VAR3</code><br>
+                            • Separação por vírgula: <code>João Silva, 11999999999, Dado1, Dado2, Dado3</code><br>
+                            • Separação por tab: <code>Maria Santos	11888888888	InfoVar1	InfoVar2	InfoVar3</code><br>
                             • Números formatados: <code>55 (11) 99999-9999</code><br>
                             • Com código país: <code>+55 11 99999-9999</code><br>
                             • Só números (um por linha): <code>11777777777</code>
@@ -1678,6 +1744,9 @@ function processManualImport(inputText) {
         
         let name = '';
         let phone = '';
+        let var1 = '';
+        let var2 = '';
+        let var3 = '';
         
         // Tentar diferentes separadores
         if (trimmedLine.includes(',')) {
@@ -1686,6 +1755,10 @@ function processManualImport(inputText) {
             if (parts.length >= 2) {
                 name = parts[0];
                 phone = parts[1];
+                // Capturar variáveis adicionais se existirem
+                var1 = parts[2] || '';
+                var2 = parts[3] || '';
+                var3 = parts[4] || '';
             } else {
                 phone = parts[0];
             }
@@ -1695,6 +1768,10 @@ function processManualImport(inputText) {
             if (parts.length >= 2) {
                 name = parts[0];
                 phone = parts[1];
+                // Capturar variáveis adicionais se existirem
+                var1 = parts[2] || '';
+                var2 = parts[3] || '';
+                var3 = parts[4] || '';
             } else {
                 phone = parts[0];
             }
@@ -1736,6 +1813,9 @@ function processManualImport(inputText) {
         contacts.push({
             name: name.trim(),
             phone: cleanPhone,
+            var1: var1,
+            var2: var2,
+            var3: var3,
             status: 'válido'
         });
     });
@@ -1808,11 +1888,20 @@ function addContactsToTable(contacts) {
     
     contacts.forEach(contact => {
         const row = document.createElement('tr');
+        
+        // Criar conteúdo de célula com tooltip para textos longos
+        const createCellContent = (text) => {
+            if (!text) return '';
+            return `<span class="cell-content" data-full-text="${text.replace(/"/g, '&quot;')}">${text}</span>`;
+        };
+        
         row.innerHTML = `
-            <td>${contact.name}</td>
+            <td>${createCellContent(contact.name)}</td>
             <td>${formatPhoneNumber(contact.phone)}</td>
-            <td><span class="status-badge status-valid">${contact.status}</span></td>
-            <td>
+            <td>${createCellContent(contact.var1 || '')}</td>
+            <td>${createCellContent(contact.var2 || '')}</td>
+            <td>${createCellContent(contact.var3 || '')}</td>
+            <td class="actions">
                 <button class="btn-small btn-danger" onclick="removeContact(this)">
                     <i class="fas fa-trash"></i>
                 </button>
@@ -1851,9 +1940,9 @@ function updateContactStatsFromTable() {
     
     const rows = tableBody.querySelectorAll('tr');
     const total = rows.length;
-    const valid = Array.from(rows).filter(row => 
-        row.querySelector('.status-valid')
-    ).length;
+    
+    // Como removemos a coluna de status, consideramos todos os contatos como válidos
+    const valid = total;
     
     updateContactStats(total, valid);
 } 

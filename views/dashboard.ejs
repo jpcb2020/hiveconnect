@@ -164,13 +164,63 @@
                         </div>
                     </div>
                     <div class="contact-table-container">
+                        <style>
+                            .contact-table {
+                                table-layout: fixed;
+                                width: 100%;
+                            }
+                            .contact-table th, .contact-table td {
+                                max-width: 150px;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                white-space: nowrap;
+                            }
+                            .contact-table th.actions, .contact-table td.actions {
+                                width: 80px;
+                                max-width: 80px;
+                                text-align: right;
+                            }
+                            .contact-table th.name {
+                                width: 15%;
+                            }
+                            .contact-table th.phone {
+                                width: 15%;
+                            }
+                            .contact-table th.var {
+                                width: 20%;
+                            }
+                            /* Tooltip para mostrar o texto completo */
+                            .cell-content {
+                                position: relative;
+                                display: block;
+                                overflow: hidden;
+                                text-overflow: ellipsis;
+                                white-space: nowrap;
+                            }
+                            .cell-content:hover::after {
+                                content: attr(data-full-text);
+                                position: absolute;
+                                left: 0;
+                                top: 100%;
+                                z-index: 999;
+                                background: #333;
+                                color: white;
+                                padding: 5px 10px;
+                                border-radius: 4px;
+                                white-space: normal;
+                                max-width: 300px;
+                                word-wrap: break-word;
+                            }
+                        </style>
                         <table class="contact-table">
                             <thead>
                                 <tr>
-                                    <th>Nome</th>
-                                    <th>WhatsApp</th>
-                                    <th>Status</th>
-                                    <th>Ações</th>
+                                    <th class="name">Nome</th>
+                                    <th class="phone">WhatsApp</th>
+                                    <th class="var">VAR1</th>
+                                    <th class="var">VAR2</th>
+                                    <th class="var">VAR3</th>
+                                    <th class="actions">Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="contactTableBody">
@@ -193,6 +243,7 @@
                         <div class="message-buttons">
                             <button class="name-var-btn" id="nameVarBtn"><i class="fas fa-user"></i> Nome</button>
                             <button class="name-var-btn" id="spintaxBtn"><i class="fas fa-random"></i> Spintax</button>
+                            <button class="name-var-btn" id="customVarsBtn"><i class="fas fa-tag"></i> Variáveis</button>
                             <button class="ai-creative-btn" id="aiCreativeTextBtn">
                                 <i class="fas fa-magic"></i> Texto Criativo IA
                                 <div class="ai-creative-switch">
@@ -285,6 +336,72 @@
                 <h3>Mensagem Salva</h3>
                 <p>Sua mensagem foi salva com sucesso!</p>
                 <button class="ok-btn close-save-modal">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Variables Modal -->
+    <div id="customVarsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Inserir Variável Personalizada</h3>
+                <button class="close-btn close-vars-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>Selecione a variável que deseja inserir na mensagem:</p>
+                <style>
+                    .vars-grid {
+                        display: grid;
+                        grid-template-columns: repeat(3, 1fr);
+                        gap: 15px;
+                        margin: 20px 0;
+                    }
+                    .var-btn {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 15px;
+                        background: #f8f9fa;
+                        border: 2px solid #e9ecef;
+                        border-radius: 8px;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                    }
+                    .var-btn:hover {
+                        background: #e9ecef;
+                        border-color: #dee2e6;
+                    }
+                    .var-btn i {
+                        font-size: 24px;
+                        margin-bottom: 8px;
+                        color: #3b82f6;
+                    }
+                    .var-btn span {
+                        font-weight: 600;
+                        color: #4b5563;
+                    }
+                </style>
+                <div class="vars-grid">
+                    <button class="var-btn" data-var="var1">
+                        <i class="fas fa-tag"></i>
+                        <span>VAR1</span>
+                    </button>
+                    <button class="var-btn" data-var="var2">
+                        <i class="fas fa-tag"></i>
+                        <span>VAR2</span>
+                    </button>
+                    <button class="var-btn" data-var="var3">
+                        <i class="fas fa-tag"></i>
+                        <span>VAR3</span>
+                    </button>
+                </div>
+                <p class="modal-hint">
+                    <strong>Como funciona:</strong> A variável será substituída pelo valor correspondente de cada contato durante o envio da mensagem.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="cancel-btn close-vars-modal">Cancelar</button>
             </div>
         </div>
     </div>
