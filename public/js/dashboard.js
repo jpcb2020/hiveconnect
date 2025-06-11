@@ -230,7 +230,7 @@ function initializeMessageFeatures() {
             }
         });
     }
-    
+
     // Botão Variáveis Personalizadas
     if (customVarsBtn) {
         customVarsBtn.addEventListener('click', () => {
@@ -262,7 +262,7 @@ function initializeMessageFeatures() {
     if (insertSpintaxBtn) {
         insertSpintaxBtn.addEventListener('click', insertSpintax);
     }
-    
+
     // Inserir variáveis personalizadas
     varButtons.forEach(btn => {
         btn.addEventListener('click', () => {
