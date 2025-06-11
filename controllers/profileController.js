@@ -49,6 +49,118 @@ exports.getUserMessage = async (req, res) => {
     }
 };
 
+// @route   GET api/profile/ia-status
+// @desc    Get user's IA status
+// @access  Private
+exports.getIAStatus = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const query = 'SELECT ia FROM conexbot.users WHERE id = $1';
+        const result = await pool.query(query, [userId]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ msg: 'Usuário não encontrado' });
+        }
+        
+        const iaStatus = result.rows[0].ia || false;
+        
+        res.json({
+            ia: iaStatus
+        });
+        
+    } catch (err) {
+        logger.error(`Erro ao buscar status IA para usuário ${req.user.id}:`, err.message);
+        res.status(500).send('Erro no servidor');
+    }
+};
+
+// @route   POST api/profile/ia-status
+// @desc    Update user's IA status
+// @access  Private
+exports.updateIAStatus = async (req, res) => {
+    try {
+        const { ia } = req.body;
+        const userId = req.user.id;
+        
+        // Validar se ia é um boolean
+        if (typeof ia !== 'boolean') {
+            return res.status(400).json({ msg: 'O campo ia deve ser um boolean' });
+        }
+        
+        // Atualizar o status da IA do usuário
+        const query = 'UPDATE conexbot.users SET ia = $1 WHERE id = $2';
+        await pool.query(query, [ia, userId]);
+        
+        logger.info(`Status IA atualizado para usuário ${userId}: ${ia}`);
+        
+        res.json({
+            msg: 'Status IA atualizado com sucesso',
+            ia: ia
+        });
+        
+    } catch (err) {
+        logger.error(`Erro ao atualizar status IA para usuário ${req.user.id}:`, err.message);
+        res.status(500).send('Erro no servidor');
+    }
+};
+
+// @route   GET api/profile/config-status
+// @desc    Get user's config interval
+// @access  Private
+exports.getConfigStatus = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const query = 'SELECT config FROM conexbot.users WHERE id = $1';
+        const result = await pool.query(query, [userId]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ msg: 'Usuário não encontrado' });
+        }
+        
+        const configInterval = result.rows[0].config || 10;
+        
+        res.json({
+            config: configInterval
+        });
+        
+    } catch (err) {
+        logger.error(`Erro ao buscar config para usuário ${req.user.id}:`, err.message);
+        res.status(500).send('Erro no servidor');
+    }
+};
+
+// @route   POST api/profile/config-status
+// @desc    Update user's config interval
+// @access  Private
+exports.updateConfigStatus = async (req, res) => {
+    try {
+        const { config } = req.body;
+        const userId = req.user.id;
+        
+        // Validar se config é um número inteiro positivo
+        if (!Number.isInteger(config) || config <= 0) {
+            return res.status(400).json({ msg: 'O campo config deve ser um número inteiro positivo' });
+        }
+        
+        // Atualizar o intervalo de configuração do usuário
+        const query = 'UPDATE conexbot.users SET config = $1 WHERE id = $2';
+        await pool.query(query, [config, userId]);
+        
+        logger.info(`Config atualizado para usuário ${userId}: ${config}`);
+        
+        res.json({
+            msg: 'Configuração atualizada com sucesso',
+            config: config
+        });
+        
+    } catch (err) {
+        logger.error(`Erro ao atualizar config para usuário ${req.user.id}:`, err.message);
+        res.status(500).send('Erro no servidor');
+    }
+};
+
 // @route   POST api/profile/message
 // @desc    Save user's message
 // @access  Private

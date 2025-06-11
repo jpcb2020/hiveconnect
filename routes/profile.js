@@ -28,6 +28,26 @@ router.post('/contacts', authMiddleware, profileController.saveUserContacts);
 // @access  Private
 router.get('/contacts', authMiddleware, profileController.getUserContacts);
 
+// @route   GET api/profile/ia-status
+// @desc    Get user's IA status
+// @access  Private
+router.get('/ia-status', authMiddleware, profileController.getIAStatus);
+
+// @route   POST api/profile/ia-status
+// @desc    Update user's IA status
+// @access  Private
+router.post('/ia-status', authMiddleware, profileController.updateIAStatus);
+
+// @route   GET api/profile/config-status
+// @desc    Get user's config interval
+// @access  Private
+router.get('/config-status', authMiddleware, profileController.getConfigStatus);
+
+// @route   POST api/profile/config-status
+// @desc    Update user's config interval
+// @access  Private
+router.post('/config-status', authMiddleware, profileController.updateConfigStatus);
+
 // @route   GET api/profile/whatsapp/status
 // @desc    Get current user's WhatsApp instance status
 // @access  Private

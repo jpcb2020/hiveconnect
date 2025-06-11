@@ -213,12 +213,16 @@ function initializeMessageFeatures() {
     const nameVarBtn = document.getElementById('nameVarBtn');
     const spintaxBtn = document.getElementById('spintaxBtn');
     const customVarsBtn = document.getElementById('customVarsBtn');
+    const aiCreativeBtn = document.getElementById('aiCreativeTextBtn');
     const spintaxModal = document.getElementById('spintaxModal');
     const customVarsModal = document.getElementById('customVarsModal');
     const closeModalBtns = document.querySelectorAll('.close-modal');
     const closeVarsModalBtns = document.querySelectorAll('.close-vars-modal');
     const insertSpintaxBtn = document.getElementById('insertSpintax');
     const varButtons = document.querySelectorAll('.var-btn');
+    
+    // Inicializar switch IA
+    initializeAISwitch();
 
     // Botão variável nome
     if (nameVarBtn) {
@@ -311,6 +315,9 @@ function initializeBroadcastSettings() {
     if (saveSettingsBtn) {
         saveSettingsBtn.addEventListener('click', saveBroadcastSettings);
     }
+    
+    // Carregar configuração salva
+    loadBroadcastSettings();
 }
 
 // Conexão WhatsApp
@@ -1106,13 +1113,52 @@ function initializeAttachments() {
     });
 }
 
-function saveBroadcastSettings() {
+async function saveBroadcastSettings() {
     const messageInterval = document.getElementById('messageInterval').value;
     const deliverySpeed = document.getElementById('deliverySpeed').value;
     
-    // Simular salvamento
-    console.log('Salvando configurações:', { messageInterval, deliverySpeed });
-    showNotification('Configurações salvas com sucesso!', 'success');
+    try {
+        // Salvar intervalo de mensagens no banco de dados
+        const configResponse = await authenticatedFetch('/api/profile/config-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ config: parseInt(messageInterval) })
+        });
+        
+        if (!configResponse.ok) {
+            const errorData = await configResponse.json();
+            throw new Error(errorData.msg || 'Erro ao salvar configuração');
+        }
+        
+        console.log('Salvando configurações:', { messageInterval, deliverySpeed });
+        showNotification('Configurações salvas com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('Erro ao salvar configurações:', error);
+        showNotification('Erro ao salvar configurações: ' + error.message, 'error');
+    }
+}
+
+async function loadBroadcastSettings() {
+    try {
+        // Carregar configuração do intervalo de mensagens
+        const configResponse = await authenticatedFetch('/api/profile/config-status');
+        
+        if (configResponse.ok) {
+            const configData = await configResponse.json();
+            const messageIntervalInput = document.getElementById('messageInterval');
+            
+            if (messageIntervalInput && configData.config) {
+                messageIntervalInput.value = configData.config;
+            }
+        }
+        
+    } catch (error) {
+        console.error('Erro ao carregar configurações:', error);
+        // Manter valor padrão em caso de erro
+    }
 }
 
 function updateContactStats(total, valid) {
@@ -2103,5 +2149,102 @@ async function autoSaveContacts() {
     } catch (error) {
         console.error('Erro no salvamento automático:', error);
         // Não mostrar notificação para não incomodar o usuário
+    }
+}
+
+// Função para inicializar o switch da IA
+async function initializeAISwitch() {
+    const aiCreativeBtn = document.getElementById('aiCreativeTextBtn');
+    
+    if (!aiCreativeBtn) {
+        console.warn('Botão IA não encontrado');
+        return;
+    }
+    
+    try {
+        // Carregar estado atual da IA
+        await loadAIStatus();
+        
+        // Adicionar event listener para o clique
+        aiCreativeBtn.addEventListener('click', toggleAIStatus);
+        
+    } catch (error) {
+        console.error('Erro ao inicializar switch IA:', error);
+    }
+}
+
+// Função para carregar o status da IA do servidor
+async function loadAIStatus() {
+    try {
+        const response = await authenticatedFetch('/api/profile/ia-status');
+        
+        if (response.ok) {
+            const data = await response.json();
+            updateAISwitchUI(data.ia);
+        } else {
+            console.error('Erro ao carregar status IA');
+            updateAISwitchUI(false); // Default para desativado
+        }
+        
+    } catch (error) {
+        console.error('Erro ao carregar status IA:', error);
+        updateAISwitchUI(false); // Default para desativado
+    }
+}
+
+// Função para alternar o status da IA
+async function toggleAIStatus() {
+    const aiCreativeBtn = document.getElementById('aiCreativeTextBtn');
+    
+    if (!aiCreativeBtn) return;
+    
+    // Verificar estado atual
+    const isCurrentlyActive = aiCreativeBtn.classList.contains('active');
+    const newStatus = !isCurrentlyActive;
+    
+    try {
+        // Desabilitar botão temporariamente
+        aiCreativeBtn.classList.add('disabled');
+        
+        // Enviar para o servidor
+        const response = await authenticatedFetch('/api/profile/ia-status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ia: newStatus })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            updateAISwitchUI(data.ia);
+            
+            // Mostrar notificação
+            const statusText = data.ia ? 'ativada' : 'desativada';
+            showNotification(`IA Criativa ${statusText}`, 'success');
+        } else {
+            const errorData = await response.json();
+            showNotification(`Erro: ${errorData.msg}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Erro ao alterar status IA:', error);
+        showNotification('Erro ao alterar status da IA', 'error');
+    } finally {
+        // Reabilitar botão
+        aiCreativeBtn.classList.remove('disabled');
+    }
+}
+
+// Função para atualizar a UI do switch
+function updateAISwitchUI(isActive) {
+    const aiCreativeBtn = document.getElementById('aiCreativeTextBtn');
+    
+    if (!aiCreativeBtn) return;
+    
+    if (isActive) {
+        aiCreativeBtn.classList.add('active');
+    } else {
+        aiCreativeBtn.classList.remove('active');
     }
 }

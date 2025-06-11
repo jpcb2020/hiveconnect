@@ -774,6 +774,32 @@ body {
     border-radius: 50%;
 }
 
+/* Estados do switch IA */
+.ai-creative-btn.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.ai-creative-btn.active .ai-creative-switch-track {
+    background-color: #4CAF50;
+}
+
+.ai-creative-btn.active .ai-creative-switch-thumb {
+    transform: translateX(16px);
+}
+
+.ai-creative-btn.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.ai-creative-btn.disabled:hover {
+    background-color: var(--section-bg);
+    color: var(--text-color);
+    transform: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
 .message-tools {
     display: flex;
     gap: 1rem;
