@@ -94,6 +94,9 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Garantir que o estado inicial esteja correto
+    resetConnectionState();
+    
     // Inicializar funcionalidades do dashboard
     initializeDashboardFeatures();
     
@@ -301,9 +304,10 @@ async function checkWhatsAppStatus() {
             console.log('Status WhatsApp recebido:', data);
             updateConnectionUI(data);
             
-            // Se status indica que precisa de QR Code ou já está conectado, iniciar monitoramento
+            // Iniciar monitoramento apenas se usuário iniciou conexão OU se já está conectado
             const status = data.status.status || data.status;
-            if (status === 'open' || status === 'connected' || status === 'connecting' || status === 'qr' || status === 'qr_code' || status === 'close' || status === 'closed') {
+            if ((status === 'open' || status === 'connected') || 
+                (userInitiatedConnection && (status === 'connecting' || status === 'qr' || status === 'qr_code' || status === 'disconnected' || status === 'disconnect'))) {
                 if (!statusMonitoringInterval) {
                     startStatusMonitoring();
                 }
@@ -409,26 +413,31 @@ function updateConnectionUI(statusData) {
             console.log('Status changed to connected, notification handled by handleStatusChange');
         }
     } else if (status === 'connecting' || status === 'qr' || status === 'qr_code') {
-        // Aguardando conexão via QR Code (apenas para status que realmente aguardam scan)
-        connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Aguardando QR Code';
-        connectionStatus.className = 'connection-status connecting';
-        connectBtn.style.display = 'none';
-        disconnectBtn.style.display = 'block';
-        refreshBtn.style.display = 'block';
-        console.log('Status QR Code ativo, aguardando escaneamento...', status);
-        
-        // ALTERAÇÃO PRINCIPAL: Só buscar QR Code se o usuário iniciou a conexão
+        // Só mostrar como aguardando QR Code se o usuário iniciou a conexão
         if (userInitiatedConnection) {
+            // Aguardando conexão via QR Code (usuário iniciou conexão)
+            connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Aguardando QR Code';
+            connectionStatus.className = 'connection-status connecting';
+            connectBtn.style.display = 'none';
+            disconnectBtn.style.display = 'block';
+            refreshBtn.style.display = 'block';
+            console.log('Status QR Code ativo, aguardando escaneamento...', status);
+            
             console.log('Buscando QR Code automaticamente para status:', status);
             fetchAndDisplayQRCode().catch(error => {
                 console.error('Erro ao buscar QR Code automaticamente:', error);
             });
         } else {
-            // Mostrar placeholder quando conexão não foi iniciada pelo usuário
+            // Mostrar como desconectado quando conexão não foi iniciada pelo usuário
+            connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Desconectado';
+            connectionStatus.className = 'connection-status disconnected';
+            connectBtn.style.display = 'block';
+            disconnectBtn.style.display = 'none';
+            refreshBtn.style.display = 'none';
             qrContainer.innerHTML = `
                 <div class="qr-placeholder">
                     <i class="fas fa-qrcode"></i>
-                    <p>Aguardando QR Code</p>
+                    <p>WhatsApp Desconectado</p>
                     <p class="connection-details">Clique em "Iniciar Conexão" para começar</p>
                 </div>
             `;
@@ -449,19 +458,46 @@ function updateConnectionUI(statusData) {
             </div>
         `;
     } else {
-        // Estado desconectado padrão (outros status não reconhecidos)
-        connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Desconectado';
-        connectionStatus.className = 'connection-status disconnected';
-        connectBtn.style.display = 'block';
-        disconnectBtn.style.display = 'none';
-        refreshBtn.style.display = 'none';
-        qrContainer.innerHTML = `
-            <div class="qr-placeholder">
-                <i class="fas fa-qrcode"></i>
-                <p>WhatsApp Desconectado</p>
-                <p class="connection-details">Clique em "Iniciar Conexão" para começar</p>
-            </div>
-        `;
+        // Verificar se usuário iniciou conexão e status é disconnected
+        if (userInitiatedConnection && (status === 'disconnected' || status === 'disconnect')) {
+            // Estado especial: usuário iniciou conexão mas status ainda é disconnected
+            // Isso significa que o sistema está conectando ao WhatsApp
+            connectionStatus.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Conectando ao WhatsApp';
+            connectionStatus.className = 'connection-status connecting';
+            connectBtn.style.display = 'none';
+            disconnectBtn.style.display = 'block';
+            refreshBtn.style.display = 'none';
+            console.log('🔄 Estado especial detectado: usuário iniciou conexão, status disconnected - sistema conectando ao WhatsApp...');
+            
+            qrContainer.innerHTML = `
+                <div class="qr-placeholder connecting">
+                    <div class="connecting-animation">
+                        <i class="fas fa-spinner fa-spin"></i>
+                    </div>
+                    <p><strong>Conectando ao WhatsApp...</strong></p>
+                    <p class="connection-details">Aguarde enquanto estabelecemos a conexão</p>
+                    <div class="connecting-dots">
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                        <span class="dot"></span>
+                    </div>
+                </div>
+            `;
+        } else {
+            // Estado desconectado padrão (outros status não reconhecidos)
+            connectionStatus.innerHTML = '<i class="fas fa-circle"></i> Desconectado';
+            connectionStatus.className = 'connection-status disconnected';
+            connectBtn.style.display = 'block';
+            disconnectBtn.style.display = 'none';
+            refreshBtn.style.display = 'none';
+            qrContainer.innerHTML = `
+                <div class="qr-placeholder">
+                    <i class="fas fa-qrcode"></i>
+                    <p>WhatsApp Desconectado</p>
+                    <p class="connection-details">Clique em "Iniciar Conexão" para começar</p>
+                </div>
+            `;
+        }
     }
 }
 
@@ -520,6 +556,7 @@ async function connectWhatsApp() {
 
     // ALTERAÇÃO PRINCIPAL: Definir que foi iniciado pelo usuário
     userInitiatedConnection = true;
+    console.log('Usuário iniciou conexão WhatsApp - userInitiatedConnection:', userInitiatedConnection);
 
     connectBtn.textContent = 'Conectando...';
     connectBtn.disabled = true;
@@ -621,6 +658,7 @@ async function refreshQRCode() {
 function resetConnectionState() {
     userInitiatedConnection = false;
     stopStatusMonitoring();
+    console.log('Estado da conexão resetado - userInitiatedConnection:', userInitiatedConnection);
 }
 
 // Menu flutuante
@@ -825,6 +863,82 @@ style.textContent = `
         user-select: none;
     }
     
+    /* Estilos para animação de conexão */
+    .qr-placeholder.connecting {
+        background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+        border: 2px dashed #10b981;
+        animation: pulse-border 2s infinite;
+        padding: 30px 20px;
+        border-radius: 12px;
+        text-align: center;
+        min-height: 200px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        box-sizing: border-box;
+        word-wrap: break-word;
+        overflow: visible;
+    }
+    
+    .connecting-animation {
+        font-size: 2rem;
+        color: #10b981;
+        margin-bottom: 1rem;
+        display: block;
+        width: 100%;
+        text-align: center;
+    }
+    
+    .qr-placeholder.connecting p {
+        margin: 0.5rem 0;
+        font-size: 1.1rem;
+        color: #374151;
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: initial;
+        width: 100%;
+        text-align: center;
+    }
+    
+    .qr-placeholder.connecting .connection-details {
+        font-size: 0.9rem;
+        color: #6b7280;
+        margin-top: 0.5rem;
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.4;
+    }
+    
+    .connecting-dots {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+    
+    .connecting-dots .dot {
+        width: 8px;
+        height: 8px;
+        background: #10b981;
+        border-radius: 50%;
+        animation: dot-bounce 1.4s infinite ease-in-out;
+    }
+    
+    .connecting-dots .dot:nth-child(1) { animation-delay: -0.32s; }
+    .connecting-dots .dot:nth-child(2) { animation-delay: -0.16s; }
+    .connecting-dots .dot:nth-child(3) { animation-delay: 0s; }
+    
+    @keyframes pulse-border {
+        0%, 100% { border-color: #10b981; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        50% { border-color: #059669; box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+    }
+    
+    @keyframes dot-bounce {
+        0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
+        40% { transform: scale(1.2); opacity: 1; }
+    }
+    
     .notification:hover {
         transform: translateX(-5px);
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2) !important;
@@ -919,6 +1033,13 @@ style.textContent = `
         padding: 8px 16px;
         font-weight: 600;
         font-size: 0.9rem;
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: initial;
+        min-width: fit-content;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
     }
     
     .connection-status.disconnected {
