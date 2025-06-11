@@ -684,9 +684,254 @@ function initializeFloatingMenu() {
 function handleFileUpload(event) {
     const files = event.target.files;
     if (files.length > 0) {
-        console.log('Arquivos selecionados:', files);
-        // Implementar lógica de upload
-        showNotification('Arquivo(s) carregado(s) com sucesso!', 'success');
+        const file = files[0];
+        console.log('Arquivo selecionado:', file);
+        
+        // Verificar tipo de arquivo
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        
+        if (['txt', 'csv', 'xlsx', 'xls'].includes(fileExtension)) {
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    let contacts = [];
+                    
+                    if (fileExtension === 'txt' || fileExtension === 'csv') {
+                        // Processar TXT ou CSV
+                        const content = e.target.result;
+                        contacts = processTextFile(content, fileExtension);
+                    } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
+                        // Processar Excel
+                        showNotification('Processando arquivo Excel...', 'info');
+                        const data = new Uint8Array(e.target.result);
+                        contacts = processExcelFile(data);
+                    }
+                    
+                    if (contacts && contacts.length > 0) {
+                        // Remover duplicatas
+                        const uniqueContacts = removeDuplicateContacts(contacts);
+                        const duplicatesRemoved = contacts.length - uniqueContacts.length;
+                        
+                        // Adicionar contatos à tabela
+                        addContactsToTable(uniqueContacts);
+                        
+                        // Mostrar notificação de sucesso
+                        let message = `${uniqueContacts.length} contatos importados com sucesso!`;
+                        if (duplicatesRemoved > 0) {
+                            message += ` (${duplicatesRemoved} duplicatas removidas)`;
+                        }
+                        showNotification(message, 'success');
+                    } else {
+                        showNotification('Nenhum contato válido encontrado no arquivo.', 'warning');
+                    }
+                } catch (error) {
+                    console.error('Erro ao processar arquivo:', error);
+                    showNotification('Erro ao processar arquivo: ' + error.message, 'error');
+                }
+            };
+            
+            reader.onerror = function() {
+                showNotification('Erro ao ler o arquivo', 'error');
+            };
+            
+            if (fileExtension === 'txt' || fileExtension === 'csv') {
+                reader.readAsText(file);
+            } else {
+                reader.readAsArrayBuffer(file);
+            }
+        } else {
+            showNotification('Formato de arquivo não suportado. Use .txt, .csv, .xlsx ou .xls', 'error');
+        }
+        
+        // Limpar o input para permitir selecionar o mesmo arquivo novamente
+        event.target.value = '';
+    }
+}
+
+// Função para processar arquivos de texto (TXT, CSV)
+function processTextFile(content, fileType) {
+    const lines = content.split(/\r?\n/);
+    const contacts = [];
+    const errors = [];
+    
+    // Determinar separador (vírgula para CSV, ou detectar automaticamente)
+    let separator = fileType === 'csv' ? ',' : null;
+    
+    // Se não for CSV, tentar detectar o separador
+    if (!separator) {
+        const firstLine = lines[0] || '';
+        if (firstLine.includes(',')) {
+            separator = ',';
+        } else if (firstLine.includes(';')) {
+            separator = ';';
+        } else if (firstLine.includes('\t')) {
+            separator = '\t';
+        } else {
+            // Caso não tenha separador claro, tratar como espaço ou número puro
+            separator = ' ';
+        }
+    }
+    
+    lines.forEach((line, index) => {
+        const lineNumber = index + 1;
+        const trimmedLine = line.trim();
+        
+        if (!trimmedLine) return; // Pular linhas vazias
+        
+        let name = '';
+        let phone = '';
+        
+        try {
+            // Processar baseado no separador
+            if (separator && trimmedLine.includes(separator)) {
+                const parts = trimmedLine.split(separator).map(part => part.trim());
+                if (parts.length >= 2) {
+                    name = parts[0];
+                    phone = parts[1];
+                } else {
+                    phone = parts[0];
+                }
+            } else if (trimmedLine.includes(' ')) {
+                // Separação por espaço (últimos números como telefone)
+                const parts = trimmedLine.split(' ');
+                const lastPart = parts[parts.length - 1];
+                
+                // Se a última parte parece um número de telefone
+                if (/^\+?[\d\s\-\(\)]+$/.test(lastPart)) {
+                    phone = lastPart;
+                    name = parts.slice(0, -1).join(' ').trim();
+                } else {
+                    // Tratar como só número se toda a linha parece um telefone
+                    if (/^\+?[\d\s\-\(\)]+$/.test(trimmedLine)) {
+                        phone = trimmedLine;
+                    } else {
+                        errors.push(`Linha ${lineNumber}: Formato não reconhecido - "${trimmedLine}"`);
+                        return;
+                    }
+                }
+            } else {
+                // Assumir que é só um número de telefone
+                phone = trimmedLine;
+            }
+            
+            // Validar e limpar telefone
+            const cleanPhone = cleanPhoneNumber(phone);
+            if (!cleanPhone || !isValidPhoneNumber(cleanPhone)) {
+                errors.push(`Linha ${lineNumber}: Número inválido - "${phone}"`);
+                return;
+            }
+            
+            // Se não tem nome, gerar um baseado no número
+            if (!name.trim()) {
+                name = `Contato ${cleanPhone.slice(-4)}`;
+            }
+            
+            contacts.push({
+                name: name.trim(),
+                phone: cleanPhone,
+                status: 'válido'
+            });
+        } catch (error) {
+            errors.push(`Linha ${lineNumber}: Erro ao processar - "${trimmedLine}"`);
+        }
+    });
+    
+    // Mostrar erros se houver
+    if (errors.length > 0) {
+        console.warn('Erros na importação:', errors);
+        setTimeout(() => {
+            showNotification(`Verifique o console para detalhes dos ${errors.length} erros`, 'info');
+        }, 3000);
+    }
+    
+    return contacts;
+}
+
+// Função para processar arquivos Excel (XLSX, XLS)
+function processExcelFile(data) {
+    try {
+        // Verificar se a biblioteca xlsx está disponível
+        if (typeof XLSX === 'undefined') {
+            // Carregar biblioteca xlsx se necessário
+            showNotification('Carregando biblioteca para processar Excel...', 'info');
+            
+            const script = document.createElement('script');
+            script.src = 'https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js';
+            document.head.appendChild(script);
+            
+            // Retornar vazio e mostrar erro, pois a biblioteca ainda não está carregada
+            showNotification('Por favor, tente novamente após o carregamento da biblioteca', 'warning');
+            return [];
+        }
+        
+        // Processar o arquivo Excel
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        
+        // Converter para JSON
+        const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        const contacts = [];
+        const errors = [];
+        
+        rows.forEach((row, index) => {
+            const lineNumber = index + 1;
+            
+            if (!row || row.length === 0 || (row.length === 1 && !row[0])) {
+                return; // Pular linhas vazias
+            }
+            
+            try {
+                let name = '';
+                let phone = '';
+                
+                // Tratar diferentes formatos de linhas
+                if (row.length >= 2) {
+                    // Assumir que a primeira coluna é o nome e a segunda é o telefone
+                    name = String(row[0] || '').trim();
+                    phone = String(row[1] || '').trim();
+                } else {
+                    // Se só tem uma coluna, assumir que é o telefone
+                    phone = String(row[0] || '').trim();
+                }
+                
+                // Validar e limpar telefone
+                const cleanPhone = cleanPhoneNumber(phone);
+                if (!cleanPhone || !isValidPhoneNumber(cleanPhone)) {
+                    errors.push(`Linha ${lineNumber}: Número inválido - "${phone}"`);
+                    return;
+                }
+                
+                // Se não tem nome, gerar um baseado no número
+                if (!name.trim()) {
+                    name = `Contato ${cleanPhone.slice(-4)}`;
+                }
+                
+                contacts.push({
+                    name: name,
+                    phone: cleanPhone,
+                    status: 'válido'
+                });
+            } catch (error) {
+                errors.push(`Linha ${lineNumber}: Erro ao processar`);
+            }
+        });
+        
+        // Mostrar erros se houver
+        if (errors.length > 0) {
+            console.warn('Erros na importação:', errors);
+            setTimeout(() => {
+                showNotification(`Verifique o console para detalhes dos ${errors.length} erros`, 'info');
+            }, 3000);
+        }
+        
+        return contacts;
+    } catch (error) {
+        console.error('Erro ao processar arquivo Excel:', error);
+        showNotification('Erro ao processar arquivo Excel: ' + error.message, 'error');
+        return [];
     }
 }
 
@@ -715,12 +960,30 @@ function insertTextAtCursor(text) {
 function insertSpintax() {
     const spintaxInput = document.getElementById('spintaxInput');
     if (spintaxInput && spintaxInput.value.trim()) {
-        const lines = spintaxInput.value.trim().split('\n');
+        // Processar cada linha, remover espaços extras e linhas vazias
+        const lines = spintaxInput.value
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0);
+        
+        if (lines.length === 0) {
+            showNotification('Adicione pelo menos uma opção de texto', 'warning');
+            return;
+        }
+        
+        // Criar o formato de spintax correto: {opção1|opção2|opção3}
         const spintaxText = '{' + lines.join('|') + '}';
+        
+        // Inserir no cursor
         insertTextAtCursor(spintaxText);
+        
+        // Limpar o modal e fechá-lo
         spintaxInput.value = '';
         document.getElementById('spintaxModal').classList.remove('active');
+        
         showNotification('Spintax inserido com sucesso!', 'success');
+    } else {
+        showNotification('Adicione pelo menos uma opção de texto', 'warning');
     }
 }
 
