@@ -167,6 +167,9 @@ function initializeContactFeatures() {
     const fileUpload = document.getElementById('fileUpload');
     const clearContactsBtn = document.getElementById('clearContactsBtn');
     const manualImportBtn = document.getElementById('manualImportBtn');
+    
+    // Carregar contatos salvos do banco de dados
+    loadContactsFromDatabase();
 
     // Upload de arquivo
     if (uploadBtn && fileUpload) {
@@ -181,6 +184,8 @@ function initializeContactFeatures() {
     if (clearContactsBtn) {
         clearContactsBtn.addEventListener('click', clearContacts);
     }
+    
+
 
     // Botão importação manual
     if (manualImportBtn) {
@@ -543,8 +548,39 @@ function updateConnectionUI(statusData) {
                 </div>
             `;
         }
-    }
-}
+     }
+ }
+ 
+ // Função para carregar contatos do banco de dados
+ async function loadContactsFromDatabase() {
+     try {
+         const response = await authenticatedFetch('/api/profile/contacts');
+         
+         if (response.ok) {
+             const result = await response.json();
+             const contacts = result.contacts || [];
+             
+             if (contacts.length > 0) {
+                 // Limpar tabela atual
+                 const tableBody = document.getElementById('contactTableBody');
+                 if (tableBody) {
+                     tableBody.innerHTML = '';
+                 }
+                 
+                 // Adicionar contatos carregados à tabela
+                 addContactsToTable(contacts);
+                 
+                 console.log(`${contacts.length} contatos carregados do banco de dados`);
+             }
+         } else {
+             console.log('Nenhum contato salvo encontrado ou erro ao carregar');
+         }
+         
+     } catch (error) {
+         console.error('Erro ao carregar contatos do banco de dados:', error);
+         // Não mostrar notificação de erro para não incomodar o usuário na inicialização
+     }
+ }
 
 async function fetchAndDisplayQRCode() {
     // Evitar múltiplas chamadas simultâneas
@@ -1007,6 +1043,9 @@ function clearContacts() {
         updateContactStats(0, 0);
         document.getElementById('contactTableBody').innerHTML = '';
         showNotification('Contatos limpos com sucesso!', 'success');
+        
+        // Salvar automaticamente após limpar contatos
+        autoSaveContacts();
     }
 }
 
@@ -1912,6 +1951,9 @@ function addContactsToTable(contacts) {
     
     // Atualizar estatísticas
     updateContactStatsFromTable();
+    
+    // Salvar automaticamente após adicionar contatos
+    autoSaveContacts();
 }
 
 // Função para formatar número de telefone para exibição
@@ -1930,6 +1972,9 @@ function removeContact(button) {
         row.remove();
         updateContactStatsFromTable();
         showNotification('Contato removido', 'info');
+        
+        // Salvar automaticamente após remover contato
+        autoSaveContacts();
     }
 }
 
@@ -1945,4 +1990,118 @@ function updateContactStatsFromTable() {
     const valid = total;
     
     updateContactStats(total, valid);
-} 
+}
+
+// Função para salvar contatos no banco de dados
+async function saveContactsToDatabase() {
+    try {
+        // Obter todos os contatos da tabela
+        const tableBody = document.getElementById('contactTableBody');
+        if (!tableBody) {
+            showNotification('Tabela de contatos não encontrada', 'error');
+            return;
+        }
+        
+        const rows = tableBody.querySelectorAll('tr');
+        if (rows.length === 0) {
+            showNotification('Nenhum contato para salvar', 'warning');
+            return;
+        }
+        
+        // Extrair dados dos contatos da tabela
+        const contacts = [];
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 5) {
+                const contact = {
+                    name: cells[0].textContent.trim(),
+                    phone: cells[1].textContent.trim(),
+                    var1: cells[2].textContent.trim() || '',
+                    var2: cells[3].textContent.trim() || '',
+                    var3: cells[4].textContent.trim() || ''
+                };
+                contacts.push(contact);
+            }
+        });
+        
+        if (contacts.length === 0) {
+            showNotification('Nenhum contato válido encontrado', 'warning');
+            return;
+        }
+        
+        // Mostrar loading
+        const saveBtn = document.getElementById('saveContactsBtn');
+        const originalText = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+        saveBtn.disabled = true;
+        
+        // Fazer requisição para salvar contatos
+        const response = await authenticatedFetch('/api/profile/contacts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ contacts: contacts })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            showNotification(`${contacts.length} contatos salvos com sucesso!`, 'success');
+            console.log('Contatos salvos:', result);
+        } else {
+            const error = await response.json();
+            throw new Error(error.msg || 'Erro ao salvar contatos');
+        }
+        
+    } catch (error) {
+        console.error('Erro ao salvar contatos:', error);
+        showNotification('Erro ao salvar contatos: ' + error.message, 'error');
+    } finally {
+        // Restaurar botão
+        const saveBtn = document.getElementById('saveContactsBtn');
+        if (saveBtn) {
+            saveBtn.innerHTML = '<i class="fas fa-save"></i> Salvar Contatos';
+            saveBtn.disabled = false;
+        }
+    }
+}
+
+// Função para salvamento automático de contatos (sem notificações)
+async function autoSaveContacts() {
+    try {
+        // Extrair dados dos contatos da tabela
+        const contacts = [];
+        const rows = document.querySelectorAll('#contactTableBody tr');
+        
+        rows.forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 5) {
+                const contact = {
+                    name: cells[0].textContent.trim(),
+                    phone: cells[1].textContent.trim(),
+                    var1: cells[2].textContent.trim() || '',
+                    var2: cells[3].textContent.trim() || '',
+                    var3: cells[4].textContent.trim() || ''
+                };
+                
+                // Só adicionar se tiver nome e telefone
+                if (contact.name && contact.phone) {
+                    contacts.push(contact);
+                }
+            }
+        });
+        
+        // Enviar para o servidor silenciosamente
+        await authenticatedFetch('/api/profile/contacts', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ contacts })
+        });
+        
+    } catch (error) {
+        console.error('Erro no salvamento automático:', error);
+        // Não mostrar notificação para não incomodar o usuário
+    }
+}

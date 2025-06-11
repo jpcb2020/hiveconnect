@@ -93,6 +93,71 @@ exports.saveUserMessage = async (req, res) => {
     }
 };
 
+// @route   POST api/profile/contacts
+// @desc    Save user's contacts
+// @access  Private
+exports.saveUserContacts = async (req, res) => {
+    try {
+        const { contacts } = req.body;
+        
+        // Validar se contacts é um array
+        if (!Array.isArray(contacts)) {
+            return res.status(400).json({ msg: 'Contacts deve ser um array' });
+        }
+        
+        // Validar estrutura dos contatos
+        for (let contact of contacts) {
+            if (!contact.name || !contact.phone) {
+                return res.status(400).json({ msg: 'Cada contato deve ter nome e telefone' });
+            }
+        }
+        
+        const userId = req.user.id;
+        
+        // Atualizar a coluna contacts do usuário
+        const query = 'UPDATE conexbot.users SET contacts = $1 WHERE id = $2';
+        await pool.query(query, [JSON.stringify(contacts), userId]);
+        
+        logger.info(`Contatos salvos para usuário ${userId}: ${contacts.length} contatos`);
+        
+        res.json({
+            msg: 'Contatos salvos com sucesso',
+            count: contacts.length
+        });
+        
+    } catch (err) {
+        logger.error(`Erro ao salvar contatos para usuário ${req.user.id}:`, err.message);
+        res.status(500).send('Erro no servidor');
+    }
+};
+
+// @route   GET api/profile/contacts
+// @desc    Get user's contacts
+// @access  Private
+exports.getUserContacts = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        const query = 'SELECT contacts FROM conexbot.users WHERE id = $1';
+        const result = await pool.query(query, [userId]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ msg: 'Usuário não encontrado' });
+        }
+        
+        const contacts = result.rows[0].contacts || [];
+        
+        res.json({
+            contacts: contacts,
+            count: contacts.length
+        });
+        
+    } catch (err) {
+        logger.error(`Erro ao buscar contatos para usuário ${req.user.id}:`, err.message);
+        res.status(500).send('Erro no servidor');
+    }
+};
+
 // @route   GET api/profile/whatsapp/status
 // @desc    Get current user's WhatsApp instance status
 // @access  Private

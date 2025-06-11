@@ -575,7 +575,8 @@ body {
 
 .manual-import-btn,
 .upload-btn,
-.clear-contacts-btn {
+.clear-contacts-btn,
+.save-contacts-btn {
     display: flex;
     align-items: center;
     gap: 0.5rem;
@@ -607,6 +608,22 @@ body {
 .clear-contacts-btn:hover {
     background-color: #b91c1c;
     transform: translateY(-2px);
+}
+
+.save-contacts-btn {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.save-contacts-btn:hover {
+    background-color: #059669;
+    transform: translateY(-2px);
+}
+
+.save-contacts-btn:disabled {
+    background-color: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .contact-list {

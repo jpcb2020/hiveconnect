@@ -18,6 +18,16 @@ router.get('/message', authMiddleware, profileController.getUserMessage);
 // @access  Private
 router.post('/message', authMiddleware, profileController.saveUserMessage);
 
+// @route   POST api/profile/contacts
+// @desc    Save user's contacts
+// @access  Private
+router.post('/contacts', authMiddleware, profileController.saveUserContacts);
+
+// @route   GET api/profile/contacts
+// @desc    Get user's contacts
+// @access  Private
+router.get('/contacts', authMiddleware, profileController.getUserContacts);
+
 // @route   GET api/profile/whatsapp/status
 // @desc    Get current user's WhatsApp instance status
 // @access  Private
