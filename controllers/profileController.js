@@ -1,5 +1,6 @@
 const { getWhatsAppInstanceStatus, getWhatsAppQRCode, logoutWhatsAppInstance, createWhatsAppInstance, deleteWhatsAppInstance } = require('../utils/whatsappAPI');
 const logger = require('../utils/logger');
+const pool = require('../config/db');
 
 // @route   GET api/profile/me
 // @desc    Get current user's profile (mock)
@@ -15,6 +16,80 @@ exports.getCurrentUserProfile = async (req, res) => {
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Erro no servidor');
+    }
+};
+
+// @route   GET api/profile/message
+// @desc    Get current user's saved message
+// @access  Private
+exports.getUserMessage = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        
+        // Buscar a mensagem do usuário no banco de dados
+        const result = await pool.query(
+            'SELECT mensagem FROM conexbot.users WHERE id = $1',
+            [userId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ msg: 'Usuário não encontrado' });
+        }
+        
+        res.json({
+            success: true,
+            mensagem: result.rows[0].mensagem || ''
+        });
+    } catch (err) {
+        logger.error(`Erro ao recuperar mensagem do usuário ${req.user.email}:`, err.message);
+        res.status(500).json({
+            success: false,
+            msg: 'Erro no servidor'
+        });
+    }
+};
+
+// @route   POST api/profile/message
+// @desc    Save user's message
+// @access  Private
+exports.saveUserMessage = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const { mensagem } = req.body;
+        
+        // Validar a mensagem
+        if (mensagem === undefined) {
+            return res.status(400).json({ 
+                success: false,
+                msg: 'Conteúdo da mensagem é obrigatório' 
+            });
+        }
+        
+        // Atualizar a mensagem do usuário no banco de dados
+        const result = await pool.query(
+            'UPDATE conexbot.users SET mensagem = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id',
+            [mensagem, userId]
+        );
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ 
+                success: false,
+                msg: 'Usuário não encontrado' 
+            });
+        }
+        
+        logger.info(`Usuário ${req.user.email} atualizou sua mensagem`);
+        
+        res.json({
+            success: true,
+            msg: 'Mensagem salva com sucesso'
+        });
+    } catch (err) {
+        logger.error(`Erro ao salvar mensagem do usuário ${req.user.email}:`, err.message);
+        res.status(500).json({
+            success: false,
+            msg: 'Erro no servidor'
+        });
     }
 };
 

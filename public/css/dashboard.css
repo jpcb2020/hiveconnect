@@ -700,53 +700,36 @@ body {
     box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
 }
 
-.name-var-btn {
-    display: inline-flex;
+.name-var-btn, 
+.ai-creative-btn {
+    display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.5rem 1rem;
+    padding: 0.6rem 1rem;
     font-size: 0.9rem;
     background-color: var(--section-bg);
     color: var(--text-color);
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    margin-right: 0.5rem;
+    transition: all 0.2s ease;
+    height: 38px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.name-var-btn:hover {
-    background-color: var(--primary-color);
-    color: white;
-    transform: translateY(-2px);
-}
-
-.ai-creative-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    font-size: 0.9rem;
-    background-color: var(--section-bg);
-    color: var(--text-color);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    margin-top: 0.5rem;
-}
-
+.name-var-btn:hover,
 .ai-creative-btn:hover {
     background-color: var(--primary-color);
     color: white;
     transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
 }
 
 .ai-creative-switch {
     position: relative;
     display: inline-block;
-    width: 40px;
-    height: 20px;
+    width: 34px;
+    height: 18px;
     margin-left: 5px;
     vertical-align: middle;
 }
@@ -759,18 +742,18 @@ body {
     right: 0;
     bottom: 0;
     background-color: #ccc;
-    transition: .4s;
+    transition: .3s;
     border-radius: 34px;
 }
 
 .ai-creative-switch-thumb {
     position: absolute;
-    height: 14px;
-    width: 14px;
-    left: 4px;
+    height: 12px;
+    width: 12px;
+    left: 3px;
     bottom: 3px;
     background-color: white;
-    transition: .4s;
+    transition: .3s;
     border-radius: 50%;
 }
 
@@ -910,7 +893,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 2000;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -1176,4 +1159,104 @@ body {
     .modal-body {
         padding: 1rem 0.75rem;
     }
+}
+
+.message-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    align-items: center;
+}
+
+.save-message-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1rem;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    height: 38px;
+}
+
+.save-message-btn i {
+    font-size: 0.9rem;
+}
+
+.save-message-btn:hover {
+    background-color: var(--secondary-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilos para o modal de sucesso */
+.modal-success {
+    max-width: 400px;
+    text-align: center;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    background-color: white;
+}
+
+.modal-success .modal-body {
+    padding: 30px 20px;
+}
+
+.success-icon {
+    margin: 0 auto 20px;
+    width: 80px;
+    height: 80px;
+    background-color: rgba(16, 185, 129, 0.1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.success-icon i {
+    font-size: 45px;
+    color: var(--success-color);
+}
+
+.text-center {
+    text-align: center;
+}
+
+.modal-success h3 {
+    color: var(--text-color);
+    margin-bottom: 15px;
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.modal-success p {
+    color: var(--light-text);
+    margin-bottom: 25px;
+    font-size: 1rem;
+}
+
+.ok-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 40px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 1rem;
+}
+
+.ok-btn:hover {
+    background-color: var(--secondary-color);
+    transform: translateY(-2px);
 }

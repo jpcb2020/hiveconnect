@@ -8,6 +8,16 @@ const profileController = require('../controllers/profileController');
 // @access  Private
 router.get('/me', authMiddleware, profileController.getCurrentUserProfile);
 
+// @route   GET api/profile/message
+// @desc    Get current user's saved message
+// @access  Private
+router.get('/message', authMiddleware, profileController.getUserMessage);
+
+// @route   POST api/profile/message
+// @desc    Save user's message
+// @access  Private
+router.post('/message', authMiddleware, profileController.saveUserMessage);
+
 // @route   GET api/profile/whatsapp/status
 // @desc    Get current user's WhatsApp instance status
 // @access  Private
