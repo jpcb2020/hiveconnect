@@ -1463,22 +1463,27 @@ function showNotification(message, type = 'info') {
     notification.title = 'Clique para fechar'; // Tooltip
     
     // Calcular posição baseada nas notificações existentes
-    const topPosition = 20 + (activeNotifications.length * 70); // 70px de espaçamento entre notificações
+    // Ajustado para ficar abaixo do header fixo (80px) + margem (20px) = 100px
+    const topPosition = 100 + (activeNotifications.length * 80); // 80px de espaçamento entre notificações
     
     notification.style.cssText = `
         position: fixed;
         top: ${topPosition}px;
-        right: 20px;
-        padding: 12px 20px;
-        border-radius: 6px;
+        right: 24px;
+        padding: 16px 24px;
+        border-radius: 12px;
         background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
         color: white;
-        z-index: 10000;
-        animation: slideIn 0.3s ease;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        z-index: 10001;
+        animation: slideIn 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
         font-weight: 500;
-        max-width: 350px;
+        font-size: 14px;
+        max-width: 380px;
+        min-width: 280px;
         word-wrap: break-word;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     `;
     
     // Event listener para fechar ao clicar
@@ -1495,10 +1500,10 @@ function showNotification(message, type = 'info') {
     
     document.body.appendChild(notification);
     
-    // Remover notificação após 4 segundos
+    // Remover notificação após 3 segundos
     setTimeout(() => {
         removeNotification(notificationId);
-    }, 4000);
+    }, 3000);
 }
 
 // Função para remover notificação e reposicionar as outras
@@ -1509,29 +1514,34 @@ function removeNotification(notificationId) {
     
     const notification = activeNotifications[notificationIndex];
     
-    // Animar saída
-    notification.element.style.animation = 'slideOut 0.3s ease';
+    // Remover transição para evitar conflito com animação de saída
+    notification.element.style.transition = 'none';
     
-        setTimeout(() => {
+    // Animar saída
+    notification.element.style.animation = 'slideOut 0.25s cubic-bezier(0.4, 0, 1, 1) forwards';
+    
+    setTimeout(() => {
         // Remover do DOM
         if (notification.element.parentNode) {
             notification.element.parentNode.removeChild(notification.element);
-            }
+        }
         
         // Remover da lista
         activeNotifications.splice(notificationIndex, 1);
         
         // Reposicionar notificações restantes
         repositionNotifications();
-        }, 300);
+    }, 250);
 }
 
 // Função para reposicionar notificações após remoção
 function repositionNotifications() {
     activeNotifications.forEach((notification, index) => {
-        const newTopPosition = 20 + (index * 70);
+        const newTopPosition = 100 + (index * 80); // Consistente com o posicionamento inicial
+        
+        // Garantir que a transição seja aplicada corretamente
+        notification.element.style.transition = 'top 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
         notification.element.style.top = `${newTopPosition}px`;
-        notification.element.style.transition = 'top 0.3s ease';
         notification.topPosition = newTopPosition;
     });
 }
@@ -1540,22 +1550,43 @@ function repositionNotifications() {
 const style = document.createElement('style');
 style.textContent = `
     @keyframes slideIn {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
+        0% { 
+            transform: translateX(120%) scale(0.8); 
+            opacity: 0; 
+        }
+        50% { 
+            transform: translateX(-10%) scale(1.05); 
+            opacity: 0.8; 
+        }
+        100% { 
+            transform: translateX(0) scale(1); 
+            opacity: 1; 
+        }
     }
     @keyframes slideOut {
-        from { transform: translateX(0); opacity: 1; }
-        to { transform: translateX(100%); opacity: 0; }
+        0% { 
+            transform: translateX(0) scale(1); 
+            opacity: 1; 
+        }
+        70% {
+            transform: translateX(50%) scale(0.95);
+            opacity: 0.3;
+        }
+        100% { 
+            transform: translateX(100%) scale(0.9); 
+            opacity: 0; 
+        }
     }
     
     /* Estilos para notificações */
     .notification {
         font-family: 'Poppins', sans-serif;
         font-size: 14px;
-        line-height: 1.4;
-        transition: top 0.3s ease, transform 0.3s ease, opacity 0.3s ease;
+        line-height: 1.5;
+        transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         cursor: pointer;
         user-select: none;
+        will-change: transform, opacity;
     }
     
     /* Estilos para animação de conexão */
@@ -1635,28 +1666,32 @@ style.textContent = `
     }
     
     .notification:hover {
-        transform: translateX(-5px);
-        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2) !important;
+        transform: translateX(-8px) scale(1.02);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1) !important;
     }
     
     .notification-success {
         background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
         border-left: 4px solid #065f46;
+        box-shadow: 0 8px 32px rgba(16, 185, 129, 0.2), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
     }
     
     .notification-error {
         background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
         border-left: 4px solid #991b1b;
+        box-shadow: 0 8px 32px rgba(239, 68, 68, 0.2), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
     }
     
     .notification-warning {
         background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
         border-left: 4px solid #92400e;
+        box-shadow: 0 8px 32px rgba(245, 158, 11, 0.2), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
     }
     
     .notification-info {
         background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
         border-left: 4px solid #1d4ed8;
+        box-shadow: 0 8px 32px rgba(59, 130, 246, 0.2), 0 2px 6px rgba(0, 0, 0, 0.08) !important;
     }
     
     /* Estilos para feedback visual do WhatsApp */
