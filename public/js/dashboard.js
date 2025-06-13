@@ -1107,10 +1107,291 @@ function initializeAttachments() {
         if (input) {
             input.addEventListener('change', (e) => {
                 console.log(`${inputId} files:`, e.target.files);
-                // Implementar preview de anexos
+                
+                // Processar cada arquivo selecionado
+                const files = Array.from(e.target.files);
+                files.forEach(file => handleMediaUpload(file, inputId));
             });
         }
     });
+    
+    // Carregar mídias existentes do usuário
+    loadUserMedia();
+}
+
+// Função para carregar mídias existentes do usuário
+async function loadUserMedia() {
+    try {
+        const response = await fetch('/api/profile/media', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${AuthManager.getToken()}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Erro ao carregar mídias');
+        }
+        
+        const result = await response.json();
+        
+        if (result.success && result.data && result.data.length > 0) {
+            console.log(`Carregando ${result.data.length} mídias existentes`);
+            
+            // Limpar preview container antes de adicionar as mídias
+            const previewContainer = document.getElementById('attachmentPreview');
+            if (previewContainer) {
+                previewContainer.innerHTML = '';
+            }
+            
+            // Criar preview para cada mídia
+            result.data.forEach(media => {
+                createAttachmentPreview({
+                    id: media.id,
+                    url: media.url,
+                    filename: media.filename,
+                    originalName: media.original_name,
+                    size: media.size,
+                    type: media.mimetype,
+                    hive_id: media.filename,
+                    inputType: getInputTypeFromMimetype(media.mimetype)
+                });
+            });
+            
+            // Atualizar contador de anexos
+            updateAttachmentCounter();
+            
+            showNotification(`${result.data.length} mídia(s) carregada(s) com sucesso!`, 'success');
+        } else {
+            console.log('Nenhuma mídia encontrada para este usuário');
+        }
+    } catch (error) {
+        console.error('Erro ao carregar mídias:', error);
+        showNotification('Erro ao carregar mídias existentes', 'warning');
+    }
+}
+
+// Função auxiliar para determinar o tipo de input baseado no mimetype
+function getInputTypeFromMimetype(mimetype) {
+    if (mimetype.startsWith('image/')) {
+        return 'imageUpload';
+    } else if (mimetype.startsWith('video/')) {
+        return 'videoUpload';
+    } else if (mimetype.startsWith('audio/')) {
+        return 'audioUpload';
+    } else {
+        return 'documentUpload';
+    }
+}
+
+// Função para fazer upload de mídia para o Hive Storage
+async function handleMediaUpload(file, inputType) {
+    try {
+        // Verificar se já atingiu o limite de anexos (10)
+        const currentAttachments = document.querySelectorAll('.attachment-item-preview').length;
+        if (currentAttachments >= 10) {
+            showNotification('Limite de 10 anexos atingido. Remova alguns antes de adicionar mais.', 'warning');
+            return;
+        }
+        
+        // Verificar tamanho do arquivo (máximo 50MB)
+        const maxSize = 50 * 1024 * 1024; // 50MB em bytes
+        if (file.size > maxSize) {
+            showNotification(`Arquivo muito grande. O tamanho máximo é 50MB.`, 'error');
+            return;
+        }
+        
+        // Mostrar indicador de carregamento
+        showNotification(`Enviando ${file.name}...`, 'info');
+        
+        // Criar FormData para envio
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Fazer upload para o servidor
+        const response = await fetch('/api/profile/upload-media', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${AuthManager.getToken()}`
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.msg || 'Erro ao fazer upload');
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Criar preview do anexo
+            createAttachmentPreview({
+                id: result.data.id, // ID real do banco de dados
+                url: result.data.url,
+                filename: result.data.filename,
+                originalName: result.data.originalName,
+                size: result.data.size,
+                type: file.type,
+                hive_id: result.data.filename, // filename é o ID do Hive Storage
+                inputType: inputType
+            });
+            
+            // Atualizar contador de anexos
+            updateAttachmentCounter();
+            
+            showNotification(`Arquivo ${file.name} enviado com sucesso!`, 'success');
+        } else {
+            throw new Error(result.msg || 'Erro desconhecido no upload');
+        }
+    } catch (error) {
+        console.error('Erro ao fazer upload:', error);
+        showNotification(`Erro ao enviar arquivo: ${error.message}`, 'error');
+    }
+}
+
+// Função para criar preview do anexo
+function createAttachmentPreview(attachment) {
+    const previewContainer = document.getElementById('attachmentPreview');
+    
+    // Criar elemento de preview
+    const previewItem = document.createElement('div');
+    previewItem.className = 'attachment-item-preview';
+    previewItem.dataset.id = attachment.id;
+    previewItem.dataset.url = attachment.url;
+    previewItem.dataset.filename = attachment.filename;
+    previewItem.dataset.type = attachment.type;
+    previewItem.dataset.hiveId = attachment.filename || '';
+    
+    // Determinar o ícone baseado no tipo de arquivo
+    const fileIcon = getFileIcon(attachment.type, attachment.inputType);
+    
+    // Criar thumbnail
+    let thumbnailHtml = '';
+    if (attachment.type.startsWith('image/')) {
+        // Para imagens, mostrar thumbnail
+        thumbnailHtml = `<img src="${attachment.url}" alt="${attachment.filename}" class="attachment-thumbnail">`;
+    } else {
+        // Para outros tipos, mostrar ícone
+        thumbnailHtml = `<div class="attachment-icon"><i class="${fileIcon}"></i></div>`;
+    }
+    
+    // Formatar tamanho do arquivo
+    const fileSize = formatFileSize(attachment.size);
+    
+    // Estrutura HTML do preview
+    previewItem.innerHTML = `
+        <div class="attachment-preview-content">
+            ${thumbnailHtml}
+            <div class="attachment-info">
+                <div class="attachment-filename" title="${attachment.originalName}">${attachment.originalName}</div>
+                <div class="attachment-size">${fileSize}</div>
+            </div>
+            <button class="attachment-remove" data-id="${attachment.id}">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    
+    // Adicionar ao container
+    previewContainer.appendChild(previewItem);
+    
+    // Adicionar evento para remover anexo
+    const removeBtn = previewItem.querySelector('.attachment-remove');
+    removeBtn.addEventListener('click', () => removeAttachment(attachment.id));
+}
+
+// Função para obter ícone baseado no tipo de arquivo
+function getFileIcon(mimeType, inputType) {
+    if (mimeType.startsWith('image/')) {
+        return 'fas fa-image';
+    } else if (mimeType.startsWith('video/')) {
+        return 'fas fa-video';
+    } else if (mimeType.startsWith('audio/')) {
+        return 'fas fa-music';
+    } else if (mimeType.includes('pdf')) {
+        return 'fas fa-file-pdf';
+    } else if (mimeType.includes('word') || mimeType.includes('doc')) {
+        return 'fas fa-file-word';
+    } else if (mimeType.includes('excel') || mimeType.includes('sheet') || mimeType.includes('xls')) {
+        return 'fas fa-file-excel';
+    } else if (mimeType.includes('powerpoint') || mimeType.includes('presentation') || mimeType.includes('ppt')) {
+        return 'fas fa-file-powerpoint';
+    } else {
+        return 'fas fa-file-alt';
+    }
+}
+
+// Função para formatar tamanho do arquivo
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Função para remover anexo
+async function removeAttachment(id) {
+    const attachment = document.querySelector(`.attachment-item-preview[data-id="${id}"]`);
+    if (!attachment) {
+        showNotification('Anexo não encontrado', 'error');
+        return;
+    }
+    
+    try {
+        // Mostrar indicador de carregamento
+        showNotification('Removendo anexo...', 'info');
+        
+        // Fazer requisição para deletar a mídia
+        const response = await fetch(`/api/profile/media/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${AuthManager.getToken()}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.msg || 'Erro ao remover anexo');
+        }
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Remover elemento do DOM
+            attachment.remove();
+            updateAttachmentCounter();
+            showNotification('Anexo removido com sucesso', 'success');
+        } else {
+            throw new Error(result.msg || 'Erro desconhecido ao remover anexo');
+        }
+        
+    } catch (error) {
+        console.error('Erro ao remover anexo:', error);
+        showNotification(`Erro ao remover anexo: ${error.message}`, 'error');
+    }
+}
+
+// Função para atualizar contador de anexos
+function updateAttachmentCounter() {
+    const counter = document.getElementById('attachmentCounter');
+    const currentCount = document.querySelectorAll('.attachment-item-preview').length;
+    
+    if (counter) {
+        counter.textContent = `${currentCount}/10`;
+        
+        // Destacar contador se estiver próximo do limite
+        if (currentCount >= 8) {
+            counter.classList.add('near-limit');
+        } else {
+            counter.classList.remove('near-limit');
+        }
+    }
 }
 
 async function saveBroadcastSettings() {

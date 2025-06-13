@@ -1,7 +1,16 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const authMiddleware = require('../middleware/authMiddleware');
 const profileController = require('../controllers/profileController');
+
+// Configuração do multer para upload de arquivos
+const upload = multer({
+    storage: multer.memoryStorage(), // Armazenar em memória
+    limits: {
+        fileSize: 50 * 1024 * 1024 // Limite de 50MB
+    }
+});
 
 // @route   GET api/profile/me
 // @desc    Get current user's profile
@@ -68,5 +77,20 @@ router.post('/whatsapp/logout', authMiddleware, profileController.logoutMyWhatsA
 // @access  Private
 // COMENTADO: Não é mais necessário criar instância manualmente
 // router.post('/whatsapp/create-instance', authMiddleware, profileController.createMyWhatsAppInstance);
+
+// @route   POST api/profile/upload-media
+// @desc    Upload media file to Hive Storage
+// @access  Private
+router.post('/upload-media', authMiddleware, upload.single('file'), profileController.uploadMedia);
+
+// @route   GET api/profile/media
+// @desc    Get user's media files
+// @access  Private
+router.get('/media', authMiddleware, profileController.getUserMedia);
+
+// @route   DELETE api/profile/media/:id
+// @desc    Delete media file from Hive Storage and database
+// @access  Private
+router.delete('/media/:id', authMiddleware, profileController.deleteMedia);
 
 module.exports = router;
